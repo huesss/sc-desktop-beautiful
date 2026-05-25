@@ -1,6 +1,4 @@
-//! Канонизация жанро-тегов под выдачу /discover. Хардкодный мап покрывает
-//! популярные SC-варианты написания (например, "hip hop" / "hip-hop" / "rap"
-//! → "Hip-Hop"). Остальные жанры проходят через title-case как fallback.
+
 
 pub fn canonicalize_tags(raw: Vec<String>) -> Vec<String> {
     raw.into_iter()

@@ -213,11 +213,6 @@ impl GdriveBackend {
         Ok((info, Box::pin(stream)))
     }
 
-    /// Granted "anyone with link can read" on the file (idempotent within process)
-    /// and returned a public download URL. Used by `/redirect/...`: worker follows
-    /// the 307 to Drive directly, byte traffic bypasses storage. Scope of the link
-    /// is exactly one file, no expiration — to revoke, delete the file or its
-    /// "anyone" permission via the Drive UI/API.
     pub async fn public_link(&self, key: &str) -> Result<String, BackendError> {
         let Some(file) = self.find_in_folder(&self.cfg.root_folder_id, key).await? else {
             return Err(BackendError::NotFound);

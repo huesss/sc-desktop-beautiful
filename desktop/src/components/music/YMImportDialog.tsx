@@ -73,29 +73,29 @@ function YMImportDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm" />
-        <Dialog.Content className="dialog-content fixed z-[80] top-1/2 left-1/2 w-full max-w-[520px] bg-[#1a1a1e]/95 backdrop-blur-2xl border border-white/[0.08] rounded-3xl shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="px-7 pt-6 pb-4 border-b border-white/[0.06] flex items-center justify-between">
-            <Dialog.Title className="text-[18px] font-bold text-white/90 tracking-tight">
+        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-[80] bg-black/60 " />
+        <Dialog.Content className="dialog-content fixed z-[80] top-1/2 left-1/2 w-full max-w-[520px] bg-[#141414]/95 border border-white/10 rounded-lg shadow-2xl overflow-hidden">
+          {}
+          <div className="px-5 pt-6 pb-4 border-b border-white/10 flex items-center justify-between">
+            <Dialog.Title className="text-[18px] font-bold text-white tracking-tight">
               {t('settings.importYandex')}
             </Dialog.Title>
             <Dialog.Close asChild>
-              <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/[0.08] transition-all cursor-pointer">
+              <button className="w-8 h-8 rounded-lg flex items-center justify-center text-[#ffffff99] hover:text-[#ffffff99] hover:bg-white/5 transition-all cursor-pointer">
                 <X size={16} />
               </button>
             </Dialog.Close>
           </div>
 
-          {/* Body */}
-          <div className="px-7 py-5 space-y-5">
-            {/* Playlist result card */}
+          {}
+          <div className="px-5 py-5 space-y-5">
+            {}
             {playlist ? (
-              <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
+              <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/[.03] ">
                 <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-transparent" />
-                <div className="relative p-5 flex items-center gap-4">
-                  {/* Playlist artwork */}
-                  <div className="w-16 h-16 rounded-xl bg-white/[0.06] border border-white/[0.06] flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="relative p-5 flex items-center gap-2">
+                  {}
+                  <div className="w-16 h-16 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
                     {playlist.artwork_url ? (
                       <img
                         src={proxiedAssetUrl(playlist.artwork_url) ?? ''}
@@ -113,8 +113,8 @@ function YMImportDialog({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-bold text-white/90 truncate">{playlist.title}</p>
-                    <p className="text-[12px] text-white/40 mt-0.5">
+                    <p className="text-[15px] font-bold text-white truncate">{playlist.title}</p>
+                    <p className="text-[12px] text-[#ffffff99] mt-0.5">
                       {progress?.found || 0} {t('search.tracks').toLowerCase()}
                       {playlistCount > 1
                         ? ` • ${playlistCount} ${t('search.playlists').toLowerCase()}`
@@ -134,9 +134,9 @@ function YMImportDialog({
               </div>
             ) : (
               <>
-                {/* Instructions */}
-                <div className="space-y-2 text-[13px] text-white/50">
-                  <p className="font-medium text-white/70">{t('ym.instructions')}</p>
+                {}
+                <div className="space-y-2 text-[13px] text-[#ffffff99]">
+                  <p className="font-medium text-[#ffffff99]">{t('ym.instructions')}</p>
                   <ol className="list-decimal list-inside space-y-1 text-[12px]">
                     <li>{t('ym.step1')}</li>
                     <li>{t('ym.step2')}</li>
@@ -144,23 +144,23 @@ function YMImportDialog({
                   </ol>
                 </div>
 
-                {/* Token input */}
+                {}
                 <input
                   type="text"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   placeholder={t('ym.tokenPlaceholder')}
                   disabled={busy}
-                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-[13px] text-white/80 placeholder:text-white/20 focus:border-white/[0.12] focus:bg-white/[0.06] transition-all duration-200 outline-none disabled:opacity-50"
+                  className="w-full px-4 py-3 rounded-xl bg-[#141414] border border-white/10 text-[13px] text-[#ffffff99] placeholder:text-white/20 focus:border-white/[0.12] focus:bg-white/[0.06] transition-all duration-200 outline-none disabled:opacity-50"
                 />
               </>
             )}
 
-            {/* Progress */}
+            {}
             {progress && (busy || !playlist) && (
               <div className="space-y-3">
                 {running && (
-                  <div className="rounded-2xl border border-accent/15 bg-accent/[0.07] px-4 py-3 backdrop-blur-xl">
+                  <div className="rounded-lg border border-accent/15 px-4 py-3 ">
                     <p className="text-[12px] font-medium text-white/78">
                       {t('ym.backgroundHint')}
                     </p>
@@ -172,7 +172,7 @@ function YMImportDialog({
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between text-[12px] text-white/40">
+                <div className="flex items-center justify-between text-[12px] text-[#ffffff99]">
                   <span>
                     {progress.current} / {progress.total}
                   </span>
@@ -184,24 +184,24 @@ function YMImportDialog({
                   </span>
                 </div>
                 {progress.current_track && (
-                  <p className="text-[12px] text-white/30 truncate">{progress.current_track}</p>
+                  <p className="text-[12px] text-[#ffffff99] truncate">{progress.current_track}</p>
                 )}
               </div>
             )}
 
             {saving && (
-              <p className="text-[13px] text-white/50 animate-pulse">{t('ym.savingPlaylist')}</p>
+              <p className="text-[13px] text-[#ffffff99] animate-pulse">{t('ym.savingPlaylist')}</p>
             )}
           </div>
 
-          {/* Footer */}
+          {}
           {(running || !playlist) && (
-            <div className="px-7 py-4 border-t border-white/[0.06] flex justify-end gap-3">
+            <div className="px-5 py-4 border-t border-white/10 flex justify-end gap-3">
               {running ? (
                 <>
                   <button
                     onClick={handleHide}
-                    className="px-5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-[13px] font-semibold text-white/72 border border-white/[0.08] transition-all cursor-pointer"
+                    className="px-5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-[13px] font-semibold text-white/72 border border-white/10 transition-all cursor-pointer"
                   >
                     {t('ym.hide')}
                   </button>

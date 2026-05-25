@@ -251,8 +251,7 @@ impl AiResolverClient {
             Err(_) => return true,
         };
         if count == 1 {
-            // Чуть больше суток (25h) — буфер на дрейф часов и редкие миграции
-            // ключа между нодами Redis. Бюджет всё равно сбрасывается по %Y%m%d.
+
             let _: Result<(), _> = conn.expire(&key, 60 * 60 * 25).await;
         }
         (count as u64) <= self.daily_budget

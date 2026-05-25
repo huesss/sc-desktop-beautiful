@@ -264,10 +264,6 @@ impl EnrichService {
             }
         }
 
-        // Cross-process lock: гарантирует, что один и тот же sc_track_id не
-        // обрабатывается двумя инстансами / двумя redelivery NATS параллельно.
-        // Lock привязан к сессии postgres'а — освободится сам при возврате
-        // connection в pool, либо мы явно снимем в конце.
         let mut lock_conn = self.pg.acquire().await?;
         let locked: (bool,) =
             sqlx::query_as("SELECT pg_try_advisory_lock(hashtextextended($1::text, 0))")
@@ -490,9 +486,6 @@ impl EnrichService {
     }
 }
 
-/// RAII guard для pg_advisory_unlock. При drop'е спавнит fire-and-forget таск,
-/// который снимает lock — асинхронно, потому что Drop sync. Если процесс
-/// упадёт до выполнения — postgres сам отпустит lock при reset'е connection.
 struct AdvisoryLockGuard {
     conn: Option<sqlx::pool::PoolConnection<sqlx::Postgres>>,
     sc_track_id: String,

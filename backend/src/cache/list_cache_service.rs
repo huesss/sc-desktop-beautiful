@@ -247,7 +247,6 @@ impl ListCacheService {
         let lock = self.lock(&redis_key);
         let _g = lock.lock().await;
 
-        // re-read под локом — другой воркер мог уже добрать
         state = self.load(&redis_key).await;
 
         let mut chunks = 0usize;
@@ -256,7 +255,7 @@ impl ListCacheService {
             let items_len = fetched.items.len();
             state.items.extend(fetched.items);
             state.next_cursor = fetched.next_cursor;
-            state.exhausted = state.next_cursor.is_none() || items_len == 0;
+            state.exhausted = state.next_cursor.is_none();
             chunks += 1;
         }
 

@@ -5,7 +5,7 @@ import type { Track } from '../../../stores/player';
 
 const BAR_COUNT = 160;
 
-/** Downsample SC waveform samples into BAR_COUNT averaged bars (0..1). */
+
 function downsample(samples: number[], height: number, count: number): number[] {
   if (!samples.length) return new Array(count).fill(0.35);
   const bucketSize = samples.length / count;
@@ -25,7 +25,7 @@ function downsample(samples: number[], height: number, count: number): number[] 
   return out;
 }
 
-/** Decorative fallback pattern used during load / when SC has no waveform. */
+
 const FALLBACK_BARS = (() => {
   const arr = new Array<number>(BAR_COUNT);
   for (let i = 0; i < BAR_COUNT; i++) {
@@ -38,17 +38,17 @@ const FALLBACK_BARS = (() => {
 })();
 
 interface Props {
-  /** Track whose waveform to render; null → idle/fallback pattern. */
+  
   track: Track | null;
-  /** Whether `track` is the one currently loaded in the audio engine. */
+  
   isCurrent: boolean;
 }
 
-/**
- * Progress-bearing waveform. Bars are drawn twice (muted + accent); the accent
- * layer is clipped by `--sw-progress` which we update via DOM refs on each
- * audio tick — no React re-renders while the track plays.
- */
+
+
+
+
+
 export const LiveWaveform = React.memo(
   function LiveWaveform({ track, isCurrent }: Props) {
     const { data: samples, isLoading } = useTrackWaveform(track);
@@ -107,9 +107,7 @@ export const LiveWaveform = React.memo(
             className="absolute inset-0 pointer-events-none"
             aria-hidden
             style={{
-              background:
-                'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%)',
-              backgroundSize: '200% 100%',
+              background: '#141414', backgroundSize: '200% 100%',
               animation: 'shimmer 1.8s ease-in-out infinite',
             }}
           />

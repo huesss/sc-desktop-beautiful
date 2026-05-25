@@ -20,6 +20,7 @@ const Home = lazy(() => import('./pages/Home').then((module) => ({ default: modu
 const Library = lazy(() =>
   import('./pages/Library').then((module) => ({ default: module.Library })),
 );
+const Likes = lazy(() => import('./pages/Likes').then((module) => ({ default: module.Likes })));
 const Login = lazy(() => import('./pages/Login').then((module) => ({ default: module.Login })));
 const PlaylistPage = lazy(() =>
   import('./pages/PlaylistPage').then((module) => ({ default: module.PlaylistPage })),
@@ -27,7 +28,6 @@ const PlaylistPage = lazy(() =>
 const OfflinePage = lazy(() =>
   import('./pages/OfflinePage').then((module) => ({ default: module.OfflinePage })),
 );
-const Search = lazy(() => import('./pages/Search').then((module) => ({ default: module.Search })));
 const Settings = lazy(() =>
   import('./pages/Settings').then((module) => ({ default: module.Settings })),
 );
@@ -43,8 +43,11 @@ const ArtistPage = lazy(() =>
 const AlbumPage = lazy(() =>
   import('./pages/AlbumPage').then((module) => ({ default: module.AlbumPage })),
 );
-const Discover = lazy(() =>
-  import('./pages/Discover').then((module) => ({ default: module.Discover })),
+const Search = lazy(() =>
+  import('./pages/Search').then((module) => ({ default: module.Search })),
+);
+const VibePage = lazy(() =>
+  import('./pages/VibePage').then((module) => ({ default: module.VibePage })),
 );
 const UpdateChecker = lazy(() =>
   import('./components/UpdateChecker').then((module) => ({ default: module.UpdateChecker })),
@@ -122,8 +125,8 @@ export default function App() {
     fetchUser().catch((error) => {
       if (cancelled) return;
 
-      // Auth-recoverable сбои (401/429/пустой юзер) уже перехвачены в
-      // api-client → recoverSession() (silent renew, при неудаче — модалка).
+      
+      
       if (error instanceof ApiError) return;
 
       if (getAppMode() !== 'online') {
@@ -134,8 +137,8 @@ export default function App() {
       useAuthStore.setState({ isAuthenticated: true });
     });
 
-    void import('./lib/dislikes').then(({ loadAllDislikedIds }) => {
-      if (!cancelled) void loadAllDislikedIds();
+    void import('./lib/dislikes').then(({ clearAllDislikes }) => {
+      if (!cancelled) void clearAllDislikes();
     });
 
     return () => {
@@ -180,13 +183,12 @@ export default function App() {
       <Toaster
         theme="dark"
         position="top-right"
-        offset={48}
+        offset={56}
         toastOptions={{
           style: {
-            background: 'rgba(30, 30, 34, 0.9)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            color: 'rgba(255,255,255,0.85)',
+            background: '#141414',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: '#ffffff',
             fontSize: '13px',
           },
         }}
@@ -251,6 +253,22 @@ export default function App() {
                   }
                 />
                 <Route
+                  path="vibe"
+                  element={
+                    <RouteLoader>
+                      <VibePage />
+                    </RouteLoader>
+                  }
+                />
+                <Route
+                  path="likes"
+                  element={
+                    <RouteLoader>
+                      <Likes />
+                    </RouteLoader>
+                  }
+                />
+                <Route
                   path="library"
                   element={
                     <RouteLoader>
@@ -306,14 +324,7 @@ export default function App() {
                     </RouteLoader>
                   }
                 />
-                <Route
-                  path="discover"
-                  element={
-                    <RouteLoader>
-                      <Discover />
-                    </RouteLoader>
-                  }
-                />
+                <Route path="discover" element={<Navigate to="/home" replace />} />
                 <Route
                   path="settings"
                   element={
@@ -340,17 +351,17 @@ function AppLoadingScreen({ fullscreen = false }: { fullscreen?: boolean }) {
 
   return (
     <div
-      className={`flex items-center justify-center px-6 py-8 ${fullscreen ? 'h-screen' : 'min-h-[42vh]'}`}
+      className={`flex items-center justify-center px-6 py-5 ${fullscreen ? 'h-screen' : 'min-h-[42vh]'}`}
     >
-      <div className="flex items-center gap-3 rounded-[24px] border border-white/8 bg-white/[0.035] px-4 py-3 shadow-[0_18px_44px_rgba(0,0,0,0.24)] backdrop-blur-[28px]">
-        <div className="flex size-10 items-center justify-center rounded-[16px] border border-accent/18 bg-accent/[0.10]">
-          <div className="size-4 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+      <div className="flex items-center gap-2 rounded-md border border-white/10 bg-[#141414] px-4 py-3">
+        <div className="flex size-8 items-center justify-center rounded-md border border-white/10 bg-[#0a0a0a]">
+          <div className="ui-spinner size-3.5" />
         </div>
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/28">
+          <div className="text-[10px] font-medium uppercase tracking-wide text-[#ffffff99]">
             SoundCloud
           </div>
-          <div className="mt-0.5 text-[13px] font-medium text-white/62">{t('common.loading')}</div>
+          <div className="mt-0.5 text-[13px] font-medium text-white">{t('common.loading')}</div>
         </div>
       </div>
     </div>

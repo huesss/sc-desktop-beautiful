@@ -20,7 +20,7 @@ const loadedLanguages = new Set<string>();
 
 const initPromise = i18n.use(initReactI18next).init({
   resources: {},
-  lng: normalizeLanguage(navigator.language),
+  lng: 'ru',
   fallbackLng: FALLBACK_LANGUAGE,
   interpolation: { escapeValue: false },
 });
@@ -47,7 +47,7 @@ export async function changeAppLanguage(language: string) {
   return normalized;
 }
 
-// Sync language changes back to settings store
+
 i18n.on('languageChanged', (lng) => {
   const store = useSettingsStore.getState();
   if (store.language !== lng) {

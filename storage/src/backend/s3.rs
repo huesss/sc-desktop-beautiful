@@ -69,7 +69,7 @@ impl S3Backend {
     }
 
     pub async fn delete_file(&self, key: &str) -> Result<bool, BackendError> {
-        // Head first to report whether anything was actually deleted.
+
         let existed = self.head(key).await?.is_some();
         if !existed {
             return Ok(false);

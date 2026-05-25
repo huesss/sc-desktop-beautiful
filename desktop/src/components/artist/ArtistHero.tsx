@@ -21,15 +21,13 @@ const SocialChip = memo(({ kind, url, title }: { kind: string; url: string; titl
     href={url}
     target="_blank"
     rel="noreferrer"
-    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold text-white/55 hover:text-white transition-all duration-300 hover:scale-105"
+    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold text-[#ffffff99] hover:text-white transition-all duration-300 hover:scale-105"
     style={{
       background: 'rgba(255,255,255,0.04)',
       border: '0.5px solid rgba(255,255,255,0.08)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
     }}
   >
-    <span className="text-white/45 group-hover:text-white">
+    <span className="text-[#ffffff99] group-hover:text-white">
       <SocialIcon kind={kind} size={13} />
     </span>
     <span className="truncate max-w-[140px]">{title}</span>
@@ -48,10 +46,7 @@ const ScAccountChip = memo(
         onClick={() => navigate(`/user/${encodeURIComponent(`soundcloud:users:${scUserId}`)}`)}
         className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold cursor-pointer transition-all duration-300 hover:scale-105 text-orange-200/85 hover:text-orange-100"
         style={{
-          background: 'linear-gradient(135deg, rgba(255,85,0,0.16), rgba(255,0,128,0.06))',
-          border: '0.5px solid rgba(255,85,0,0.25)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
+          background: '#141414', border: '0.5px solid rgba(0,168,67,0.25)',
         }}
         title={role}
       >
@@ -70,7 +65,7 @@ function ArtistHeroImpl({ artist, hasStar, aura }: ArtistHeroProps) {
 
   return (
     <GlassHeroPanel hasStar={hasStar} aura={aura}>
-      <div className="relative p-6 md:p-10 flex flex-col lg:flex-row gap-8 lg:gap-10 items-center lg:items-stretch">
+      <div className="relative px-5 py-4 md:p-10 flex flex-col lg:flex-row gap-8 lg:gap-10 items-center lg:items-stretch">
         <AvatarArtifact
           username={artist.name}
           avatarUrl={artist.avatar_url}
@@ -79,7 +74,7 @@ function ArtistHeroImpl({ artist, hasStar, aura }: ArtistHeroProps) {
         />
 
         <div className="flex-1 min-w-0 flex flex-col justify-start gap-5 text-center lg:text-left">
-          {/* Top chips */}
+          {}
           <div className="flex flex-wrap items-center gap-2 justify-center lg:justify-start">
             {artist.confidence >= 0.7 && (
               <VerifiedBadge
@@ -90,7 +85,7 @@ function ArtistHeroImpl({ artist, hasStar, aura }: ArtistHeroProps) {
             <InfoChip icon={<MicVocal size={11} />}>{t('artist.title')}</InfoChip>
           </div>
 
-          {/* Name */}
+          {}
           <h1
             className="text-5xl md:text-7xl font-black leading-[0.85] tracking-tighter break-words max-w-full"
             style={
@@ -110,7 +105,7 @@ function ArtistHeroImpl({ artist, hasStar, aura }: ArtistHeroProps) {
             {artist.name}
           </h1>
 
-          {/* Bio */}
+          {}
           {artist.bio && (
             <button
               type="button"
@@ -118,13 +113,13 @@ function ArtistHeroImpl({ artist, hasStar, aura }: ArtistHeroProps) {
               className="group text-left cursor-pointer"
             >
               <p
-                className={`text-[14px] md:text-[15px] text-white/65 leading-relaxed max-w-2xl transition-all duration-700 ${
+                className={`text-[14px] md:text-[15px] text-[#ffffff99] leading-relaxed max-w-2xl transition-all duration-700 ${
                   bioExpanded ? '' : 'line-clamp-2'
                 }`}
               >
                 {artist.bio}
               </p>
-              <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-semibold text-white/30 uppercase tracking-[0.18em] group-hover:text-white/60 transition-colors">
+              <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-semibold text-[#ffffff99] uppercase tracking-[0.18em] group-hover:text-[#ffffff99] transition-colors">
                 <ChevronDown
                   size={12}
                   className={`transition-transform duration-500 ${bioExpanded ? 'rotate-180' : ''}`}
@@ -134,7 +129,7 @@ function ArtistHeroImpl({ artist, hasStar, aura }: ArtistHeroProps) {
             </button>
           )}
 
-          {/* Socials + SC accounts */}
+          {}
           {(artist.socials.length > 0 || artist.sc_accounts.length > 0) && (
             <div className="flex flex-wrap gap-1.5 justify-center lg:justify-start lg:mt-auto lg:pt-2">
               {artist.sc_accounts.map((acc) => (
@@ -152,7 +147,7 @@ function ArtistHeroImpl({ artist, hasStar, aura }: ArtistHeroProps) {
           )}
         </div>
 
-        {/* Right column stats */}
+        {}
         <div className="hidden lg:flex flex-col gap-3 self-stretch min-w-[180px]">
           <StatOrb
             value={artist.track_count_primary}
@@ -173,7 +168,7 @@ function ArtistHeroImpl({ artist, hasStar, aura }: ArtistHeroProps) {
         </div>
       </div>
 
-      {/* Stats strip on narrow */}
+      {}
       <div className="lg:hidden flex flex-wrap gap-2 px-6 md:px-10 pb-6 md:pb-8 justify-center">
         <CompactStat
           icon={<Music size={12} />}
@@ -207,13 +202,11 @@ const CompactStat = memo(
       style={{
         background: 'rgba(255,255,255,0.04)',
         border: '0.5px solid rgba(255,255,255,0.08)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
       }}
     >
-      <span className="text-white/40">{icon}</span>
+      <span className="text-[#ffffff99]">{icon}</span>
       <span className="text-[15px] font-black tabular-nums text-white">{value}</span>
-      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">
+      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#ffffff99]">
         {label}
       </span>
     </div>

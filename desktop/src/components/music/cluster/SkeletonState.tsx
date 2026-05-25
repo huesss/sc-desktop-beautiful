@@ -13,7 +13,7 @@ export const SkeletonState = React.memo(function SkeletonState({
   cardWidth = 160,
 }: Props) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3">
       {Array.from({ length: rows }).map((_, row) => (
         <div key={row} className="flex flex-col gap-3">
           <div className="flex items-center gap-3 pl-1">

@@ -4,18 +4,14 @@ import { listen } from '@tauri-apps/api/event';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/shallow';
 import { api } from '../../lib/api';
-import { getCurrentTime, handlePrev, seek } from '../../lib/audio';
-import { toggleDislike, useDislikeStatus } from '../../lib/dislikes';
+import { getCurrentTime, getLyricsTime, handlePrev, seek, subscribe } from '../../lib/audio';
 import { ago, art, durLong } from '../../lib/formatters';
 import { type Comment, invalidateAllLikesCache, useTrackComments } from '../../lib/hooks';
 import {
-  ExternalLink,
   Eye,
   Heart,
-  ListPlus,
   Loader2,
   MessageCircle,
   MicVocal,
@@ -27,7 +23,6 @@ import {
   SkipBack,
   SkipForward,
   shuffleIcon16,
-  ThumbsDown,
   X,
 } from '../../lib/icons';
 import { optimisticToggleLike, useLiked } from '../../lib/likes';
@@ -49,17 +44,9 @@ import {
 } from '../../stores/lyrics';
 import { type Track, usePlayerStore } from '../../stores/player';
 import { useSettingsStore } from '../../stores/settings';
-import {
-  ControlVolumeBtn,
-  PlaybackRateSlider,
-  ProgressSlider,
-  ProgressTime,
-  VolumeLabel,
-  VolumeSlider,
-} from '../layout/NowPlayingBar';
-import { AddToPlaylistDialog } from './AddToPlaylistDialog';
+import { ControlVolumeBtn, ProgressSlider, ProgressTime, VolumeSlider } from '../layout/NowPlayingBar';
 
-/* ── Source labels ────────────────────────────────────────── */
+
 
 const SOURCE_LABELS: Record<LyricsSource, string> = {
   lrclib: 'LRCLib',
@@ -103,8 +90,6 @@ function buildDisplayLines(lines: LyricLine[]): DisplayLine[] {
   }
   return out;
 }
-
-/* ── Color extraction ──────────────────────────────────────── */
 
 function extractColor(src: string): Promise<[number, number, number]> {
   return new Promise((resolve) => {
@@ -153,7 +138,7 @@ function useArtworkColor(artworkUrl: string | null) {
   return colorRef;
 }
 
-/* ── Shared: dynamic background ───────────────────────────── */
+
 
 const FullscreenBackground = React.memo(
   ({ artworkSrc, color }: { artworkSrc: string | null; color: [number, number, number] }) => {
@@ -168,7 +153,7 @@ const FullscreenBackground = React.memo(
             <img
               src={artworkSrc}
               alt=""
-              className="w-full h-full object-cover scale-[1.2] blur-[72px] opacity-30 saturate-[1.2]"
+              className="w-full h-full object-cover scale-[1.2]  opacity-30 saturate-[1.2]"
               loading="eager"
               decoding="async"
             />
@@ -191,7 +176,7 @@ const FullscreenBackground = React.memo(
   },
 );
 
-/* ── Shared: like button ───────────────────────────────────── */
+
 
 const FullscreenLikeButton = React.memo(({ track }: { track: Track }) => {
   const liked = useLiked(track.urn);
@@ -214,8 +199,8 @@ const FullscreenLikeButton = React.memo(({ track }: { track: Track }) => {
     <button
       type="button"
       onClick={toggle}
-      className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer hover:bg-white/[0.06] outline-none ${
-        liked ? 'text-accent' : 'text-white/30 hover:text-white/60'
+      className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer hover:bg-white/5 outline-none ${
+        liked ? 'text-accent' : 'text-[#ffffff99] hover:text-[#ffffff99]'
       }`}
     >
       <Heart size={20} fill={liked ? 'currentColor' : 'none'} />
@@ -223,63 +208,7 @@ const FullscreenLikeButton = React.memo(({ track }: { track: Track }) => {
   );
 });
 
-/* ── Shared: dislike button (matches NowBar style) ─────────── */
 
-const FullscreenDislikeButton = React.memo(({ track }: { track: Track }) => {
-  const { t } = useTranslation();
-  const qc = useQueryClient();
-  const disliked = useDislikeStatus(track.urn);
-  const next = usePlayerStore((s) => s.next);
-
-  const toggle = async () => {
-    const nowDisliked = !disliked;
-    if (nowDisliked && track.user_favorite) {
-      optimisticToggleLike(qc, track, false);
-      invalidateAllLikesCache();
-      api(`/likes/tracks/${encodeURIComponent(track.urn)}`, { method: 'DELETE' }).catch(() => {});
-    }
-    if (nowDisliked && usePlayerStore.getState().currentTrack?.urn === track.urn) {
-      next();
-    }
-    await toggleDislike(qc, track, nowDisliked);
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      title={disliked ? t('track.removeDislike') : t('track.dislike')}
-      className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer hover:bg-white/[0.06] outline-none ${
-        disliked ? 'text-rose-400' : 'text-white/30 hover:text-white/60'
-      }`}
-    >
-      <ThumbsDown size={18} fill={disliked ? 'currentColor' : 'none'} />
-    </button>
-  );
-});
-
-/* ── Open track page inside the app ──────────────────────── */
-
-const FullscreenOpenTrackButton = React.memo(({ track }: { track: Track }) => {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const closeLyrics = useLyricsStore((s) => s.close);
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        closeLyrics();
-        navigate(`/track/${encodeURIComponent(track.urn)}`);
-      }}
-      title={t('track.openTrackPage')}
-      className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer hover:bg-white/[0.06] text-white/30 hover:text-white/60 outline-none"
-    >
-      <ExternalLink size={18} />
-    </button>
-  );
-});
-
-/* ── Transport controls ───────────────────────────────────── */
 
 const Controls = React.memo(({ track }: { track: Track }) => {
   const { isPlaying, next, repeat, shuffle, togglePlay, toggleRepeat, toggleShuffle } =
@@ -296,29 +225,24 @@ const Controls = React.memo(({ track }: { track: Track }) => {
     );
 
   const ctrl =
-    'w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer hover:bg-white/[0.06] outline-none';
+    'w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer hover:bg-white/5 outline-none';
   const small =
-    'w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer hover:bg-white/[0.06] outline-none';
+    'w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer hover:bg-white/5 outline-none';
 
   return (
     <div className="flex items-center justify-center gap-2">
-      <AddToPlaylistDialog trackUrns={[track.urn]}>
-        <button type="button" className={`${small} text-white/30 hover:text-white/60`}>
-          <ListPlus size={20} />
-        </button>
-      </AddToPlaylistDialog>
       <FullscreenLikeButton track={track} />
       <button
         type="button"
         onClick={toggleShuffle}
-        className={`${small} ${shuffle ? 'text-accent' : 'text-white/35 hover:text-white/60'}`}
+        className={`${small} ${shuffle ? 'text-accent' : 'text-[#ffffff99] hover:text-[#ffffff99]'}`}
       >
         {shuffleIcon16}
       </button>
       <button
         type="button"
         onClick={handlePrev}
-        className={`${ctrl} text-white/60 hover:text-white`}
+        className={`${ctrl} text-[#ffffff99] hover:text-white`}
       >
         <SkipBack size={20} fill="currentColor" />
       </button>
@@ -329,23 +253,25 @@ const Controls = React.memo(({ track }: { track: Track }) => {
       >
         {isPlaying ? pauseBlack18 : playBlack18}
       </button>
-      <button type="button" onClick={next} className={`${ctrl} text-white/60 hover:text-white`}>
+      <button type="button" onClick={next} className={`${ctrl} text-[#ffffff99] hover:text-white`}>
         <SkipForward size={20} fill="currentColor" />
       </button>
       <button
         type="button"
         onClick={toggleRepeat}
-        className={`${small} ${repeat !== 'off' ? 'text-accent' : 'text-white/35 hover:text-white/60'}`}
+        className={`${small} ${repeat !== 'off' ? 'text-accent' : 'text-[#ffffff99] hover:text-[#ffffff99]'}`}
       >
         {repeat === 'one' ? repeat1Icon16 : repeatIcon16}
       </button>
-      <FullscreenDislikeButton track={track} />
-      <FullscreenOpenTrackButton track={track} />
+      <div className="ml-2 flex items-center gap-0.5 border-l border-white/10 pl-2">
+        <ControlVolumeBtn size="sm" />
+        <VolumeSlider className="w-[88px]" />
+      </div>
     </div>
   );
 });
 
-/* ── Artwork View Modal ───────────────────────────────────── */
+
 
 const ArtworkViewModal = React.memo(
   ({
@@ -373,12 +299,12 @@ const ArtworkViewModal = React.memo(
     if (typeof document === 'undefined') return null;
 
     return createPortal(
-      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/90 p-8 backdrop-blur-xl sm:p-12">
+      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/90 p-8 sm:p-12">
         <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-6 top-6 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/20 cursor-pointer"
+          className="absolute right-6 topx-5 py-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/20 cursor-pointer"
         >
           <X size={20} />
         </button>
@@ -397,11 +323,11 @@ const ArtworkViewModal = React.memo(
           </div>
         </div>
         <div className="pointer-events-none absolute bottom-8 left-1/2 z-10 w-[min(560px,calc(100vw-3rem))] -translate-x-1/2 px-3">
-          <div className="mx-auto flex w-fit max-w-full flex-col items-center gap-0.5 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-center shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur-xl">
-            <p className="max-w-[min(480px,calc(100vw-6rem))] truncate text-lg font-bold text-white/95">
+          <div className="mx-auto flex w-fit max-w-full flex-col items-center gap-0.5 rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-center ">
+            <p className="max-w-[min(480px,calc(100vw-6rem))] truncate text-lg font-bold text-white">
               {title}
             </p>
-            <p className="max-w-[min(440px,calc(100vw-6rem))] truncate text-sm text-white/50">
+            <p className="max-w-[min(440px,calc(100vw-6rem))] truncate text-sm text-[#ffffff99]">
               {subtitle}
             </p>
           </div>
@@ -412,7 +338,7 @@ const ArtworkViewModal = React.memo(
   },
 );
 
-/* ── Track column (artwork + info + slider + controls) ────── */
+
 
 const TrackColumn = React.memo(({ track, maxArt }: { track: Track; maxArt?: string }) => {
   const { t } = useTranslation();
@@ -455,7 +381,7 @@ const TrackColumn = React.memo(({ track, maxArt }: { track: Track; maxArt?: stri
   return (
     <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-[clamp(8px,1.4vh,22px)] overflow-y-auto scrollbar-hide px-12 py-6">
       <div
-        className={`${widthClass} aspect-square rounded-2xl overflow-hidden shadow-2xl shadow-black/60 ring-1 ring-white/[0.08] relative group/art`}
+        className={`${widthClass} aspect-square rounded-lg overflow-hidden shadow-2xl shadow-black/60 ring-1 ring-white/10 relative group/art`}
       >
         {artwork500 ? (
           <>
@@ -480,7 +406,7 @@ const TrackColumn = React.memo(({ track, maxArt }: { track: Track; maxArt?: stri
             <button
               type="button"
               onClick={() => setShowFullArt(true)}
-              className="absolute inset-0 bg-black/40 opacity-0 group-hover/art:opacity-100 transition-opacity duration-300 flex items-center justify-center text-white/90 backdrop-blur-[2px] cursor-pointer outline-none"
+              className="absolute inset-0 bg-black/40 opacity-0 group-hover/art:opacity-100 transition-opacity duration-300 flex items-center justify-center text-white cursor-pointer outline-none"
             >
               <div className="flex flex-col items-center gap-2 scale-90 group-hover/art:scale-100 transition-transform duration-300">
                 <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center border border-white/20">
@@ -510,14 +436,14 @@ const TrackColumn = React.memo(({ track, maxArt }: { track: Track; maxArt?: stri
 
       <div className={`${widthClass} text-center space-y-1`}>
         <div className="flex items-center justify-center gap-2 min-w-0">
-          <p className="text-[18px] font-bold text-white/95 truncate">{displayTitle}</p>
+          <p className="text-[18px] font-bold text-white truncate">{displayTitle}</p>
           {track.access === 'preview' && (
             <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide bg-amber-500/20 text-amber-400/90 px-1.5 py-px rounded">
               Preview
             </span>
           )}
         </div>
-        <p className="text-[14px] text-white/40 truncate">{artistDisplay.primary}</p>
+        <p className="text-[14px] text-[#ffffff99] truncate">{artistDisplay.primary}</p>
       </div>
 
       <div className={widthClass}>
@@ -528,22 +454,11 @@ const TrackColumn = React.memo(({ track, maxArt }: { track: Track; maxArt?: stri
       </div>
 
       <Controls track={track} />
-
-      <div
-        className={`${widthClass} flex flex-col gap-2 rounded-[22px] border border-white/[0.07] bg-black/30 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl`}
-      >
-        <div className="flex items-center gap-2">
-          <ControlVolumeBtn size="sm" />
-          <VolumeSlider className="flex-1" />
-          <VolumeLabel />
-        </div>
-        <PlaybackRateSlider />
-      </div>
     </div>
   );
 });
 
-/* ── Source badge ─────────────────────────────────────────── */
+
 
 const LyricsSourceBadge = React.memo(
   ({ source, onSearch }: { source: LyricsSource; onSearch: () => void }) => {
@@ -552,7 +467,7 @@ const LyricsSourceBadge = React.memo(
     return (
       <div className="flex items-center justify-between px-12 pt-3 pb-0">
         {label ? (
-          <span className="text-[10px] font-semibold text-white/20 bg-white/[0.04] px-2 py-0.5 rounded-full border border-white/[0.06]">
+          <span className="text-[10px] font-semibold text-white/20 bg-[#141414] px-2 py-0.5 rounded-full border border-white/10">
             {label}
           </span>
         ) : (
@@ -561,7 +476,7 @@ const LyricsSourceBadge = React.memo(
         <button
           type="button"
           onClick={onSearch}
-          className="w-8 h-8 flex items-center justify-center rounded-full text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors cursor-pointer"
+          className="w-8 h-8 flex items-center justify-center rounded-full text-[#ffffff99] hover:text-[#ffffff99] hover:bg-white/10 transition-colors cursor-pointer"
           aria-label={t('track.manualSearch')}
         >
           <Search size={14} />
@@ -571,7 +486,7 @@ const LyricsSourceBadge = React.memo(
   },
 );
 
-/* ── Synced lyrics — per-character rAF live progress (rate-aware) ── */
+
 
 function clamp01(v: number) {
   return v < 0 ? 0 : v > 1 ? 1 : v;
@@ -587,13 +502,13 @@ interface CharCell {
 }
 
 function splitChars(text: string): CharCell[] {
-  // Use Array.from to handle surrogate pairs / emoji as single grapheme-ish units.
+  
   return Array.from(text).map((ch) => ({ ch, animated: isAnimatedChar(ch) }));
 }
 
 function splitWordsForChars(cells: CharCell[]): CharCell[][] {
-  // Group consecutive cells of same kind (animated vs whitespace) so words stay together
-  // and don't break across lines mid-word.
+  
+  
   const groups: CharCell[][] = [];
   let cur: CharCell[] = [];
   let curKind: boolean | null = null;
@@ -646,22 +561,24 @@ const SyncedLyrics = React.memo(({ lines }: { lines: LyricLine[] }) => {
     container.addEventListener('pointerdown', markManual);
 
     void invoke('audio_set_lyrics_timeline', {
-      lines: displayLines.map((line) => ({ timeSecs: line.time })),
+      lines: displayLines
+        .filter((line) => !line.pause)
+        .map((line) => ({ timeSecs: line.time })),
     });
 
-    /** Per-char "head" sweeps left-to-right across the line.
-     *  Each char's local progress is `head - charIndex`, smoothed.
-     *  Slight forward leak (`+SOFT_LEAD`) so the leading char visibly lights up
-     *  before becoming the active char — mimics the karaoke-style sweep. */
-    const SOFT_LEAD = 0.6;
-    const SOFT_TAIL = 1.4;
+    const SOFT_LEAD = 0.35;
+    const SOFT_TAIL = 1.0;
 
     const writeLineProgress = (i: number, p: number) => {
       const el = lineElsRef.current[i];
       if (!el) return;
       const value = clamp01(p);
+      const valueKey = value.toFixed(4);
+      if (el.dataset.lyricProgress === valueKey) return;
+      el.dataset.lyricProgress = valueKey;
+
       el.style.setProperty('--lyric-progress', `${(value * 100).toFixed(2)}%`);
-      el.style.setProperty('--lyric-progress-value', value.toFixed(4));
+      el.style.setProperty('--lyric-progress-value', valueKey);
 
       const chars = lineCharElsRef.current[i];
       if (chars && chars.length > 0) {
@@ -669,9 +586,12 @@ const SyncedLyrics = React.memo(({ lines }: { lines: LyricLine[] }) => {
         const head = value * total;
         for (let c = 0; c < total; c++) {
           const local = clamp01((head - c + SOFT_LEAD) / SOFT_TAIL);
-          // smoothstep
           const eased = local * local * (3 - 2 * local);
-          chars[c].style.setProperty('--char-progress', eased.toFixed(4));
+          const charKey = eased.toFixed(4);
+          const charEl = chars[c];
+          if (charEl.dataset.charProgress === charKey) continue;
+          charEl.dataset.charProgress = charKey;
+          charEl.style.setProperty('--char-progress', charKey);
         }
       }
 
@@ -701,16 +621,30 @@ const SyncedLyrics = React.memo(({ lines }: { lines: LyricLine[] }) => {
       }
     };
 
+    let rafId = 0;
+    let lastWrittenProgress = -1;
+
     const unlistenPromise = listen<number | null>('lyrics:active_line', (event) => {
       const lineEls = lineElsRef.current;
       if (!container || lineEls.length === 0) return;
 
-      const idx = typeof event.payload === 'number' ? event.payload : -1;
+      const rawIdx = typeof event.payload === 'number' ? event.payload : -1;
+      let idx = -1;
+      if (rawIdx >= 0) {
+        let lyricIdx = 0;
+        for (let i = 0; i < linesRef.current.length; i++) {
+          if (linesRef.current[i].pause) continue;
+          if (lyricIdx === rawIdx) {
+            idx = i;
+            break;
+          }
+          lyricIdx++;
+        }
+      }
       if (idx === activeRef.current) return;
 
       const prev = activeRef.current;
       activeRef.current = idx;
-      lineProgressRef.current = 0;
 
       for (let i = 0; i < lineEls.length; i++) {
         let state: string;
@@ -720,6 +654,17 @@ const SyncedLyrics = React.memo(({ lines }: { lines: LyricLine[] }) => {
         else if (idx >= 0 && i < idx) state = 'past';
         else state = 'next';
         setLineState(i, state);
+      }
+
+      if (idx >= 0 && idx < lineEls.length) {
+        const cur = linesRef.current[idx];
+        const next = linesRef.current[idx + 1];
+        const dur = Math.max(0.4, (next?.time ?? cur.time + 2.6) - cur.time);
+        lineProgressRef.current = clamp01((getLyricsTime() - cur.time) / dur);
+        lastWrittenProgress = -1;
+        writeLineProgress(idx, lineProgressRef.current);
+      } else {
+        lineProgressRef.current = 0;
       }
 
       if (idx >= 0 && idx < lineEls.length && !manualScrollRef.current) {
@@ -735,47 +680,90 @@ const SyncedLyrics = React.memo(({ lines }: { lines: LyricLine[] }) => {
       }
     });
 
-    let rafId = 0;
-    let lastTickTs = 0;
-    const FRAME_BUDGET_MS = 33; // ~30fps — sweep is per-char so 30fps still looks smooth
-    const tick = (ts: number) => {
-      rafId = requestAnimationFrame(tick);
-      if (ts - lastTickTs < FRAME_BUDGET_MS) return;
-      lastTickTs = ts;
-      if (document.visibilityState === 'hidden') return;
+    const stopTick = () => {
+      if (!rafId) return;
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    };
 
+    const paintActiveLine = () => {
       const idx = activeRef.current;
       if (idx < 0 || idx >= linesRef.current.length) return;
       const cur = linesRef.current[idx];
-      const next = linesRef.current[idx + 1];
-      const dur = Math.max(0.4, (next?.time ?? cur.time + 2.6) - cur.time);
-      const target = clamp01((getCurrentTime() - cur.time) / dur);
+      if (cur.pause) return;
 
-      const prev = lineProgressRef.current;
-      const diff = target - prev;
-      const smoothed =
-        diff < 0 ? target : prev + diff * (diff > 0.18 || target > 0.92 ? 0.7 : 0.32);
-      lineProgressRef.current = smoothed;
-      writeLineProgress(idx, smoothed);
+      let nextTime = cur.time + 2.6;
+      for (let j = idx + 1; j < linesRef.current.length; j++) {
+        if (!linesRef.current[j].pause) {
+          nextTime = linesRef.current[j].time;
+          break;
+        }
+      }
+      const dur = Math.max(0.4, nextTime - cur.time);
+      const target = clamp01((getLyricsTime() - cur.time) / dur);
+      if (Math.abs(target - lastWrittenProgress) < 0.002) return;
+      lastWrittenProgress = target;
+      lineProgressRef.current = target;
+      writeLineProgress(idx, target);
     };
-    rafId = requestAnimationFrame(tick);
+
+    const tick = () => {
+      rafId = 0;
+      if (document.visibilityState === 'hidden') return;
+      if (!usePlayerStore.getState().isPlaying) return;
+
+      paintActiveLine();
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const startTick = () => {
+      stopTick();
+      if (!usePlayerStore.getState().isPlaying) return;
+      if (document.visibilityState === 'hidden') return;
+      lastWrittenProgress = -1;
+      rafId = requestAnimationFrame(tick);
+    };
 
     const applyPaused = (paused: boolean) => {
       container.classList.toggle('lyrics-paused', paused);
+      if (paused) {
+        stopTick();
+        paintActiveLine();
+      } else {
+        startTick();
+      }
     };
+
     applyPaused(!usePlayerStore.getState().isPlaying);
+
     const unsubPlayer = usePlayerStore.subscribe((s, prev) => {
       if (s.isPlaying !== prev.isPlaying) applyPaused(!s.isPlaying);
     });
 
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        stopTick();
+        return;
+      }
+      if (usePlayerStore.getState().isPlaying) startTick();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    const unsubAudio = subscribe(() => {
+      if (usePlayerStore.getState().isPlaying) return;
+      paintActiveLine();
+    });
+
     return () => {
-      cancelAnimationFrame(rafId);
+      stopTick();
+      document.removeEventListener('visibilitychange', onVisibility);
       container.removeEventListener('wheel', markManual);
       container.removeEventListener('touchstart', markManual);
       container.removeEventListener('pointerdown', markManual);
       void invoke('audio_clear_lyrics_timeline');
       unlistenPromise.then((unlisten) => unlisten());
       unsubPlayer();
+      unsubAudio();
     };
   }, [displayLines]);
 
@@ -805,8 +793,8 @@ const SyncedLyrics = React.memo(({ lines }: { lines: LyricLine[] }) => {
           }
           const cells = splitChars(line.text);
           const groups = splitWordsForChars(cells);
-          // animatedIndex must be stable across whole line (chars-only count) so
-          // CSS sweep aligns with visible glyphs only, ignoring whitespace.
+          
+          
           let animatedIndex = 0;
           return (
             <div
@@ -847,20 +835,16 @@ const SyncedLyrics = React.memo(({ lines }: { lines: LyricLine[] }) => {
   );
 });
 
-/* ── Plain lyrics ─────────────────────────────────────────── */
-
 const PlainLyrics = React.memo(({ text }: { text: string }) => (
   <div
     className="flex-1 overflow-y-auto scrollbar-hide px-12 py-16"
     style={{ maskImage: 'linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)' }}
   >
-    <div className="text-[22px] text-white/70 font-semibold whitespace-pre-wrap leading-loose tracking-tight">
+    <div className="text-[22px] text-[#ffffff99] font-semibold whitespace-pre-wrap leading-loose tracking-tight">
       {text}
     </div>
   </div>
 ));
-
-/* ── Tab button ───────────────────────────────────────────── */
 
 const PanelTabButton = React.memo(
   ({
@@ -878,15 +862,13 @@ const PanelTabButton = React.memo(
       className={`px-3.5 py-2 rounded-xl text-[12px] font-medium transition-all duration-200 cursor-pointer ${
         active
           ? 'bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
-          : 'text-white/35 hover:text-white/70 hover:bg-white/[0.04]'
+          : 'text-[#ffffff99] hover:text-[#ffffff99] hover:bg-[#141414]'
       }`}
     >
       {children}
     </button>
   ),
 );
-
-/* ── Timed comments rail ──────────────────────────────────── */
 
 const TimedCommentCard = React.memo(
   ({
@@ -905,19 +887,19 @@ const TimedCommentCard = React.memo(
       <button
         type="button"
         onClick={() => onSeek(commentTime)}
-        className={`w-full text-left rounded-2xl border px-4 py-3 transition-all duration-300 cursor-pointer ${
+        className={`w-full text-left rounded-lg border px-4 py-3 transition-all duration-300 cursor-pointer ${
           state === 'active'
             ? 'bg-gradient-to-br from-white/[0.14] to-white/[0.08] border-white/14 ring-1 ring-accent/25 shadow-[0_16px_36px_rgba(0,0,0,0.26)]'
             : state === 'past'
-              ? 'bg-white/[0.025] border-white/[0.035] hover:bg-white/[0.04]'
-              : 'bg-white/[0.045] border-white/[0.05] hover:bg-white/[0.06]'
+              ? 'bg-white/[0.025] border-white/[0.035] hover:bg-[#141414]'
+              : 'bg-white/[0.045] border-white/10 hover:bg-white/5'
         }`}
       >
         <div className="flex items-start gap-3">
           <img
             src={avatar ?? ''}
             alt=""
-            className="w-9 h-9 rounded-full shrink-0 ring-1 ring-white/[0.08]"
+            className="w-9 h-9 rounded-full shrink-0 ring-1 ring-white/10"
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -926,7 +908,7 @@ const TimedCommentCard = React.memo(
               </span>
               <span
                 className={`text-[10px] tabular-nums shrink-0 ${
-                  state === 'active' ? 'text-accent' : 'text-white/30'
+                  state === 'active' ? 'text-accent' : 'text-[#ffffff99]'
                 }`}
               >
                 {durLong(comment.timestamp ?? 0)}
@@ -991,8 +973,20 @@ const TimedCommentsRail = React.memo(({ trackUrn }: { trackUrn: string }) => {
     };
 
     syncActiveIndex();
-    const id = window.setInterval(syncActiveIndex, 250);
-    return () => window.clearInterval(id);
+
+    const unsubPlayer = usePlayerStore.subscribe((s, prev) => {
+      if (s.isPlaying !== prev.isPlaying) syncActiveIndex();
+    });
+
+    const unsubAudio = subscribe(() => {
+      if (!usePlayerStore.getState().isPlaying) return;
+      syncActiveIndex();
+    });
+
+    return () => {
+      unsubPlayer();
+      unsubAudio();
+    };
   }, [timedComments]);
 
   const focusIndex = activeIndex >= 0 ? activeIndex : timedComments.length > 0 ? 0 : -1;
@@ -1010,16 +1004,16 @@ const TimedCommentsRail = React.memo(({ trackUrn }: { trackUrn: string }) => {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
         <Loader2 size={24} className="animate-spin text-white/15" />
-        <p className="text-[13px] text-white/25">{t('track.comments')}</p>
+        <p className="text-[13px] text-[#ffffff99]">{t('track.comments')}</p>
       </div>
     );
   }
 
   if (timedComments.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 px-12 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center gap-2 px-12 text-center">
         <MessageCircle size={40} className="text-white/[0.06]" />
-        <p className="text-[15px] text-white/30 font-medium">{t('track.noComments')}</p>
+        <p className="text-[15px] text-[#ffffff99] font-medium">{t('track.noComments')}</p>
       </div>
     );
   }
@@ -1067,8 +1061,6 @@ const TimedCommentsRail = React.memo(({ trackUrn }: { trackUrn: string }) => {
   );
 });
 
-/* ── Manual search edit panel ─────────────────────────────── */
-
 const ManualSearchPanel = React.memo(
   ({
     initialArtist,
@@ -1086,14 +1078,14 @@ const ManualSearchPanel = React.memo(
     const [title, setTitle] = useState(initialTitle);
 
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 px-12 animate-fade-in-up">
-        <h3 className="text-white/80 font-bold mb-2">{t('track.manualSearch')}</h3>
+      <div className="flex-1 flex flex-col items-center justify-center gap-2 px-12 animate-fade-in-up">
+        <h3 className="text-[#ffffff99] font-bold mb-2">{t('track.manualSearch')}</h3>
         <input
           value={artist}
           onChange={(e) => setArtist(e.target.value)}
           placeholder="Artist"
           autoFocus
-          className="w-full max-w-[280px] bg-white/10 px-4 py-2.5 rounded-xl text-white text-[14px] outline-none border border-transparent focus:border-white/20 placeholder:text-white/30"
+          className="w-full max-w-[280px] bg-white/10 px-4 py-2.5 rounded-xl text-white text-[14px] outline-none border border-transparent focus:border-white/20 placeholder:text-[#ffffff99]"
         />
         <input
           value={title}
@@ -1104,13 +1096,13 @@ const ManualSearchPanel = React.memo(
               onSubmit(artist.trim(), title.trim());
             }
           }}
-          className="w-full max-w-[280px] bg-white/10 px-4 py-2.5 rounded-xl text-white text-[14px] outline-none border border-transparent focus:border-white/20 placeholder:text-white/30"
+          className="w-full max-w-[280px] bg-white/10 px-4 py-2.5 rounded-xl text-white text-[14px] outline-none border border-transparent focus:border-white/20 placeholder:text-[#ffffff99]"
         />
         <div className="flex gap-3 mt-4">
           <button
             type="button"
             onClick={onCancel}
-            className="px-5 py-2 rounded-full text-[13px] font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="px-5 py-2 rounded-full text-[13px] font-medium text-[#ffffff99] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             {t('common.back')}
           </button>
@@ -1127,8 +1119,6 @@ const ManualSearchPanel = React.memo(
     );
   },
 );
-
-/* ── Resizable split divider ──────────────────────────────── */
 
 const SplitDivider = React.memo(
   ({
@@ -1213,14 +1203,14 @@ const SplitDivider = React.memo(
       >
         <div
           className={`absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 transition-colors duration-150 ${
-            active ? 'bg-white/20' : 'bg-white/[0.04] group-hover/splitter:bg-white/10'
+            active ? 'bg-white/20' : 'bg-[#141414] group-hover/splitter:bg-white/10'
           }`}
         />
         <div
           className={`absolute left-1/2 top-1/2 flex h-14 w-3 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border transition-all duration-150 ${
             active
               ? 'border-white/18 bg-white/[0.12] shadow-[0_0_20px_rgba(255,255,255,0.08)]'
-              : 'border-white/[0.08] bg-white/[0.04] group-hover/splitter:border-white/14 group-hover/splitter:bg-white/[0.08]'
+              : 'border-white/10 bg-[#141414] group-hover/splitter:border-white/14 group-hover/splitter:bg-white/[0.08]'
           }`}
         >
           <div className="flex flex-col gap-1.5">
@@ -1234,14 +1224,11 @@ const SplitDivider = React.memo(
   },
 );
 
-/* ── Right pane content (lyrics + manual search) ──────────── */
-
 const LyricsPane = React.memo(({ track }: { track: Track }) => {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [manualQuery, setManualQuery] = useState<{ artist: string; title: string } | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset only on track switch
   useEffect(() => {
     setManualQuery(null);
     setIsEditing(false);
@@ -1291,7 +1278,7 @@ const LyricsPane = React.memo(({ track }: { track: Track }) => {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
         <Loader2 size={24} className="animate-spin text-white/15" />
-        <p className="text-[13px] text-white/25">{t('track.lyricsLoading')}</p>
+        <p className="text-[13px] text-[#ffffff99]">{t('track.lyricsLoading')}</p>
       </div>
     );
   }
@@ -1315,17 +1302,17 @@ const LyricsPane = React.memo(({ track }: { track: Track }) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-4 px-12 text-center relative">
+    <div className="flex-1 flex flex-col items-center justify-center gap-2 px-12 text-center relative">
       <button
         type="button"
         onClick={startSearch}
         aria-label={t('track.manualSearch')}
-        className="absolute right-3 top-3 w-8 h-8 flex items-center justify-center rounded-full text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors cursor-pointer"
+        className="absolute right-3 top-3 w-8 h-8 flex items-center justify-center rounded-full text-[#ffffff99] hover:text-[#ffffff99] hover:bg-white/10 transition-colors cursor-pointer"
       >
         <Search size={14} />
       </button>
       <MicVocal size={40} className="text-white/[0.06]" />
-      <p className="text-[15px] text-white/30 font-medium">{t('track.lyricsNotFound')}</p>
+      <p className="text-[15px] text-[#ffffff99] font-medium">{t('track.lyricsNotFound')}</p>
       <p className="text-[12px] text-white/15 leading-relaxed max-w-[300px]">
         {t('track.lyricsNotFoundHint')}
       </p>
@@ -1333,10 +1320,6 @@ const LyricsPane = React.memo(({ track }: { track: Track }) => {
   );
 });
 
-/* ── Fullscreen wave visualizer — driven by real FFT from Rust ────── */
-/* Rust `audio:fft` event delivers 64 log-spaced magnitude bins ~30Hz.
- * We never poll: the canvas redraws ONLY when a new frame arrives + a short
- * decay tail (~250ms) so play→pause fades smoothly. No rAF when idle. */
 
 const VIS_BINS = 64;
 
@@ -1367,8 +1350,7 @@ const FullscreenVisualizer = React.memo(() => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Mirror of the latest FFT bins. Smoothed display values live separately
-  // so we can do a quick decay tail after the last event.
+
   const targetRef = useRef<Float32Array>(new Float32Array(VIS_BINS));
   const displayRef = useRef<Float32Array>(new Float32Array(VIS_BINS));
 
@@ -1400,9 +1382,9 @@ const FullscreenVisualizer = React.memo(() => {
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
 
-    // Reusable smoothed-bins buffer; refilled per-frame to avoid GC churn.
+    
     const smoothedBins = new Float32Array(VIS_BINS);
-    // X-coords for each bin, evenly spread across the full viewport width.
+    
     let sampleXs: Float32Array | null = null;
     const buildSampleXs = () => {
       const xs = new Float32Array(VIS_BINS);
@@ -1417,15 +1399,15 @@ const FullscreenVisualizer = React.memo(() => {
 
       const display = displayRef.current;
 
-      // Smooth bins horizontally to kill staircase between adjacent bins.
-      // 1-2-1 kernel; result is rounder, no "sharp jump bass→treble" artifact.
+      
+      
       smoothedBins[0] = (display[0] * 3 + display[1]) * 0.25;
       smoothedBins[VIS_BINS - 1] = (display[VIS_BINS - 1] * 3 + display[VIS_BINS - 2]) * 0.25;
       for (let i = 1; i < VIS_BINS - 1; i++) {
         smoothedBins[i] = display[i - 1] * 0.25 + display[i] * 0.5 + display[i + 1] * 0.25;
       }
 
-      // Wave sits at the very bottom; amplitude grows upward.
+      
       const baseY = cssH - 6;
       const maxAmp = cssH * 0.78;
       const xs = sampleXs!;
@@ -1433,9 +1415,9 @@ const FullscreenVisualizer = React.memo(() => {
       let peak = 0;
       for (let i = 0; i < VIS_BINS; i++) if (display[i] > peak) peak = display[i];
 
-      // Smooth path: quadratic Béziers through midpoints between consecutive bins.
-      // Bins go left → right across the full width: bin[0]=lows on the left,
-      // bin[VIS_BINS-1]=highs on the right. No mirroring.
+      
+      
+      
       const tracePath = (ampScale: number) => {
         ctx.beginPath();
         const y0 = baseY - smoothedBins[0] * maxAmp * ampScale;
@@ -1449,11 +1431,11 @@ const FullscreenVisualizer = React.memo(() => {
           const yMid = (yA + yB) * 0.5;
           ctx.quadraticCurveTo(xA, yA, xMid, yMid);
         }
-        // Final anchor at the rightmost bin
+        
         ctx.lineTo(xs[VIS_BINS - 1], baseY - smoothedBins[VIS_BINS - 1] * maxAmp * ampScale);
       };
 
-      // Filled body with vertical accent gradient.
+      
       const fillGrad = ctx.createLinearGradient(0, 0, 0, cssH);
       fillGrad.addColorStop(0, `rgba(${accent[0]}, ${accent[1]}, ${accent[2]}, 0)`);
       fillGrad.addColorStop(
@@ -1472,7 +1454,7 @@ const FullscreenVisualizer = React.memo(() => {
       ctx.fillStyle = fillGrad;
       ctx.fill();
 
-      // Strokes — 3 layered for depth.
+      
       const drawStroke = (
         ampScale: number,
         alphaMul: number,
@@ -1500,8 +1482,8 @@ const FullscreenVisualizer = React.memo(() => {
     let lastEventTs = 0;
     let lastDecayTs = performance.now();
 
-    // Single rAF that runs only when there is something to animate:
-    // either a new frame is available, or we are still decaying after pause.
+    
+    
     let dirty = false;
     const ensureLoop = () => {
       if (rafId) return;
@@ -1511,11 +1493,11 @@ const FullscreenVisualizer = React.memo(() => {
       const dt = Math.min(0.05, (ts - lastDecayTs) / 1000);
       lastDecayTs = ts;
 
-      // Smooth target → display. Faster attack, slower release.
+      
       const target = targetRef.current;
       const display = displayRef.current;
-      const attack = 1 - Math.exp(-dt * 18); // ~55ms
-      const release = 1 - Math.exp(-dt * 5); // ~200ms
+      const attack = 1 - Math.exp(-dt * 18); 
+      const release = 1 - Math.exp(-dt * 5); 
       let any = false;
       for (let i = 0; i < VIS_BINS; i++) {
         const t = target[i];
@@ -1529,9 +1511,9 @@ const FullscreenVisualizer = React.memo(() => {
       draw();
 
       const sinceEvent = ts - lastEventTs;
-      // Keep ticking while there's energy on screen, or up to 350ms after the
-      // last event (lets us animate the post-event smoothing curve). Otherwise
-      // park the rAF — pure idle CPU.
+      
+      
+      
       if (any && (dirty || sinceEvent < 350)) {
         rafId = requestAnimationFrame(loop);
       } else {
@@ -1564,8 +1546,8 @@ const FullscreenVisualizer = React.memo(() => {
       className="absolute inset-x-0 bottom-0 z-0 pointer-events-none"
       style={{
         height: 'min(56vh, 460px)',
-        // Hard floor at bottom (full opacity until ~78% from the top of the canvas)
-        // and a soft fade upward — so the wave reads as rooted to the very edge.
+        
+        
         maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
         WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
         contain: 'strict',
@@ -1577,7 +1559,7 @@ const FullscreenVisualizer = React.memo(() => {
   );
 });
 
-/* ── Lyrics Panel (fullscreen) ────────────────────────────── */
+
 
 export const LyricsPanel = React.memo(() => {
   const open = useLyricsStore((s) => s.open);
@@ -1610,15 +1592,15 @@ export const LyricsPanel = React.memo(() => {
   const splitPercent = splitRatio * 100;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col overflow-hidden animate-fade-in-up bg-[#08080a]">
+    <div className="fixed inset-0 z-[60] flex flex-col overflow-hidden animate-fade-in-up bg-[#0a0a0a]">
       <FullscreenBackground artworkSrc={artwork500} color={colorRef.current} />
       {visualizerEnabled && <FullscreenVisualizer />}
 
       <div
-        className={`relative z-10 px-6 pt-5 pb-2 ${rightPanelOpen ? 'flex items-center justify-between gap-4' : 'flex items-center justify-center gap-4'}`}
+        className={`relative z-10 px-6 pt-5 pb-2 ${rightPanelOpen ? 'flex items-center justify-between gap-2' : 'flex items-center justify-center gap-2'}`}
         data-tauri-drag-region
       >
-        <div className="inline-flex items-center gap-1.5 rounded-2xl border border-white/[0.05] bg-white/[0.03] p-1">
+        <div className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[.03] p-1">
           <PanelTabButton
             active={rightPanelOpen && tab === 'lyrics'}
             onClick={() => {
@@ -1644,7 +1626,7 @@ export const LyricsPanel = React.memo(() => {
         <button
           type="button"
           onClick={close}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white/25 hover:text-white/70 hover:bg-white/[0.08] transition-all duration-200 cursor-pointer"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-[#ffffff99] hover:text-[#ffffff99] hover:bg-white/5 transition-all duration-200 cursor-pointer"
         >
           <X size={18} />
         </button>

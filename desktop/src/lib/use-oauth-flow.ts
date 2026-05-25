@@ -1,8 +1,7 @@
 import { fetch } from '@tauri-apps/plugin-http';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchWithAuthFallback } from './api-client';
-import { API_BASE, BYPASS_API_BASE } from './constants';
+import { fetchWithAuthFallback, getApiBases } from './api-client';
 
 interface LoginResponse {
   url: string;
@@ -25,8 +24,8 @@ export type OAuthFlowError = {
 };
 
 const POLL_INTERVAL_MS = 700;
-// Бэк может временно не отвечать (рестарт, сеть моргнула) — не вываливаем
-// ошибку с первого промаха, но и не крутим спиннер вечно.
+
+
 const UNREACHABLE_AFTER_MS = 15_000;
 
 export function useOAuthFlow(
@@ -70,8 +69,8 @@ export function useOAuthFlow(
     setIsPolling(true);
     setStep('waiting');
 
-    // x-session-id (если есть) автоматически уйдёт через apiRequest — тогда бэк
-    // привяжет результат к существующей сессии и sessionId не сменится.
+    
+    
     let login: LoginResponse;
     try {
       login = await fetchWithAuthFallback<LoginResponse>('/auth/login');
@@ -89,12 +88,15 @@ export function useOAuthFlow(
     let failingSince: number | null = null;
     let lastRedirect: string | null = null;
 
-    const tryPoll = async (base: string): Promise<LoginStatusResponse | null> => {
+    const tryPoll = async (
+      base: string,
+      requestId: string,
+    ): Promise<LoginStatusResponse | null> => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 8_000);
       try {
         const res = await fetch(
-          `${base}/auth/login/status?id=${encodeURIComponent(loginRequestId)}`,
+          `${base}/auth/login/status?id=${encodeURIComponent(requestId)}`,
           { signal: controller.signal, cache: 'no-store' as RequestCache },
         );
         if (!res.ok) return null;
@@ -104,17 +106,44 @@ export function useOAuthFlow(
       }
     };
 
+    const pollBases = getApiBases('/auth/login/status');
+
     const pollOnce = async () => {
-      let data: LoginStatusResponse | null = null;
-      try {
-        data = await tryPoll(API_BASE);
-      } catch {
+      let sawResponse = false;
+      let pending: LoginStatusResponse | null = null;
+
+      for (const base of pollBases) {
+        let data: LoginStatusResponse | null = null;
         try {
-          data = await tryPoll(BYPASS_API_BASE);
-        } catch {}
+          data = await tryPoll(base, loginRequestId);
+        } catch {
+          continue;
+        }
+        if (!data) continue;
+        sawResponse = true;
+
+        if (data.redirectUrl && data.redirectUrl !== lastRedirect) {
+          lastRedirect = data.redirectUrl;
+          setStep('waiting');
+          pollRef.current = setTimeout(pollOnce, POLL_INTERVAL_MS);
+          return;
+        }
+
+        if (data.step) setStep(data.step);
+
+        if (data.status === 'completed' && data.sessionId) {
+          cancel();
+          onSuccessRef.current(String(data.sessionId));
+          return;
+        }
+        if (data.status === 'failed' || data.status === 'expired') {
+          fail({ kind: data.status, message: data.error ?? 'Login failed' });
+          return;
+        }
+        pending = data;
       }
 
-      if (!data) {
+      if (!sawResponse) {
         const now = Date.now();
         if (failingSince == null) failingSince = now;
         if (now - failingSince >= UNREACHABLE_AFTER_MS) {
@@ -125,25 +154,7 @@ export function useOAuthFlow(
         return;
       }
       failingSince = null;
-
-      if (data.redirectUrl && data.redirectUrl !== lastRedirect) {
-        lastRedirect = data.redirectUrl;
-        setStep('waiting');
-        pollRef.current = setTimeout(pollOnce, POLL_INTERVAL_MS);
-        return;
-      }
-
-      if (data.step) setStep(data.step);
-
-      if (data.status === 'completed' && data.sessionId) {
-        cancel();
-        onSuccessRef.current(data.sessionId);
-        return;
-      }
-      if (data.status === 'failed' || data.status === 'expired') {
-        fail({ kind: data.status, message: data.error ?? 'Login failed' });
-        return;
-      }
+      if (pending?.step) setStep(pending.step);
       pollRef.current = setTimeout(pollOnce, POLL_INTERVAL_MS);
     };
 

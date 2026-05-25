@@ -119,8 +119,6 @@ impl UsersService {
         .await
     }
 
-    /// Cold-read /users/{urn}: cached_users → miss → SC + upsert.
-    /// На stale hit спавним фоновой refresh (Redis SETNX дедупит дубликаты).
     pub async fn get_by_id(&self, token: &str, user_urn: &str) -> AppResult<Value> {
         let cached: Option<(
             sqlx::types::Json<Value>,

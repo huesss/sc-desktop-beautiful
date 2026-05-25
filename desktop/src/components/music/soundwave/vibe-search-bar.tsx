@@ -7,27 +7,27 @@ export interface VibeSearchBarHandle {
 }
 
 interface Props {
-  /** Fires only when the user commits (Enter or Search button), not on every keystroke. */
+  
   onSubmit: (q: string) => void;
-  /** Fires when user clicks X inside the input or Esc. */
+  
   onClear: () => void;
-  /** Whether a search request is currently in flight. */
+  
   loading: boolean;
-  /** Whether there's an active committed query (parent state). */
+  
   active: boolean;
 }
 
-/**
- * Vibe-search input, fully uncontrolled. Keystrokes never re-render this
- * component nor its parent — the input value is held by the DOM itself.
- *
- * - Clear button visibility is driven by CSS `:placeholder-shown` (no JS state).
- * - The submit button doesn't disable based on length; we validate inside the
- *   handler. This trades a tiny correctness shim for a huge perf win.
- * - `clear()` is exposed imperatively so the parent can reset the input when
- *   the user dismisses the results from elsewhere (e.g. the "Back to wave"
- *   link in SearchHeader).
- */
+
+
+
+
+
+
+
+
+
+
+
 export const VibeSearchBar = React.memo(
   React.forwardRef<VibeSearchBarHandle, Props>(function VibeSearchBar(
     { onSubmit, onClear, loading, active },
@@ -56,7 +56,7 @@ export const VibeSearchBar = React.memo(
 
     return (
       <div
-        className="vibe-search relative rounded-2xl overflow-hidden transition-all duration-300 ease-[var(--ease-apple)]"
+        className="vibe-search relative rounded-lg overflow-hidden transition-all duration-300 ease-[var(--ease-apple)]"
         data-active={active ? '' : undefined}
         style={{
           background: active
@@ -99,7 +99,7 @@ export const VibeSearchBar = React.memo(
               }
             }}
             placeholder={t('soundwave.searchPlaceholder')}
-            className="vibe-search-input peer flex-1 bg-transparent text-[13.5px] font-medium text-white/95 placeholder:text-white/35 outline-none min-w-0"
+            className="vibe-search-input peer flex-1 bg-transparent text-[13.5px] font-medium text-white placeholder:text-[#ffffff99] outline-none min-w-0"
           />
 
           <button
@@ -107,7 +107,7 @@ export const VibeSearchBar = React.memo(
             onClick={clear}
             tabIndex={-1}
             title={t('soundwave.searchClear')}
-            className="vibe-search-clear hidden peer-[:not(:placeholder-shown)]:flex w-7 h-7 rounded-full items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-colors cursor-pointer shrink-0"
+            className="vibe-search-clear hidden peer-[:not(:placeholder-shown)]:flex w-7 h-7 rounded-full items-center justify-center text-[#ffffff99] hover:text-[#ffffff99] hover:bg-white/5 transition-colors cursor-pointer shrink-0"
           >
             <X size={13} />
           </button>
@@ -138,9 +138,7 @@ export const VibeSearchBar = React.memo(
             className="absolute bottom-0 left-0 right-0 h-[1px] pointer-events-none"
             aria-hidden
             style={{
-              background:
-                'linear-gradient(90deg, transparent, var(--color-accent) 50%, transparent)',
-              animation: 'sw-shine 2.4s linear infinite',
+              background: '#141414', animation: 'sw-shine 2.4s linear infinite',
             }}
           />
         )}

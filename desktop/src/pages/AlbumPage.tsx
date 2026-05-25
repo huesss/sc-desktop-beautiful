@@ -20,14 +20,14 @@ export function AlbumPage() {
   if (album.isLoading || (!data && !album.error)) {
     return (
       <div className="relative w-full min-h-screen flex items-center justify-center">
-        <Loader2 size={28} className="text-white/30 animate-spin" />
+        <Loader2 size={28} className="animate-spin text-accent" />
       </div>
     );
   }
 
   if (album.error || !data) {
     return (
-      <div className="relative w-full min-h-screen flex items-center justify-center text-white/40 text-sm">
+      <div className="relative w-full min-h-screen flex items-center justify-center text-[#ffffff99] text-sm">
         {t('common.error')}
       </div>
     );
@@ -45,7 +45,7 @@ export function AlbumPage() {
         >
           <AlbumHero album={data} hasStar={hasStar} aura={aura} />
           <AlbumCast artists={data.artists} aura={aura} />
-          <AlbumTrackList tracks={data.tracks} aura={aura} />
+          <AlbumTrackList tracks={data.tracks} albumId={data.id} aura={aura} />
         </div>
       </div>
     </>

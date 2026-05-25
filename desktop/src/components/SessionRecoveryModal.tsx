@@ -18,14 +18,12 @@ export const SessionRecoveryModal = React.memo(() => {
 
   const { startLogin, authUrl, isPolling, step } = useOAuthFlow(completeReauth);
 
-  // Пока идёт OAuth-поллинг — фоновый успех не должен авто-закрывать модалку.
   useEffect(() => {
     setOauthActive(isPolling);
     return () => setOauthActive(false);
   }, [isPolling, setOauthActive]);
 
   const open = phase === 'modal';
-  // Пока крутится renew или идёт OAuth-поллинг — модалку не закрываем.
   const locked = busy || isPolling;
 
   const stepLabel =
@@ -58,72 +56,33 @@ export const SessionRecoveryModal = React.memo(() => {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && !locked && reset()}>
       <Dialog.Portal>
-        <Dialog.Overlay
-          className="fixed inset-0 z-[100] animate-in fade-in duration-200"
-          style={{
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            contain: 'strict',
-            transform: 'translateZ(0)',
-          }}
-        />
-        <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-[101] w-[380px] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl overflow-hidden outline-none animate-in fade-in zoom-in-95 duration-200"
-          style={{
-            background:
-              'linear-gradient(165deg, rgba(22,14,38,0.97), rgba(14,10,28,0.98), rgba(10,8,22,0.99))',
-            border: '0.5px solid rgba(255,255,255,0.08)',
-            boxShadow:
-              '0 25px 60px rgba(0,0,0,0.6), 0 0 50px rgba(var(--accent-rgb, 255,85,0),0.08), inset 0 1px 0 rgba(255,255,255,0.04)',
-          }}
-        >
-          {/* Ambient glow */}
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 pointer-events-none"
-            style={{
-              background:
-                'radial-gradient(ellipse, var(--color-accent-glow, rgba(255,85,0,0.15)) 0%, transparent 70%)',
-              transform: 'translateZ(0)',
-            }}
-          />
-
-          <div className="relative p-7" style={{ isolation: 'isolate' }}>
-            {/* Close */}
+        <Dialog.Overlay className="ui-dialog-overlay fixed inset-0 z-[100]" />
+        <Dialog.Content className="ui-dialog fixed left-1/2 top-1/2 z-[101] w-[360px] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 outline-none">
+          <div className="relative px-5 py-4">
             <Dialog.Close
               disabled={locked}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-white/20 hover:text-white/60 hover:bg-white/[0.06] transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
+              className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-md border border-white/10 bg-[#141414] text-[#ffffff99] hover:bg-white/10 hover:text-white transition-colors cursor-pointer disabled:opacity-30"
             >
               <X size={14} />
             </Dialog.Close>
 
-            {/* Icon + title */}
-            <div className="flex flex-col items-center text-center mb-6">
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-                style={{
-                  background:
-                    'linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
-                  border: '0.5px solid rgba(255,255,255,0.08)',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-                }}
-              >
-                <Lock size={24} className="text-white/60" />
+            <div className="mb-4 flex flex-col items-center text-center">
+              <div className="mb-2 flex size-11 items-center justify-center rounded-md border border-white/10 bg-[#141414]">
+                <Lock size={20} className="text-[#ffffff99]" />
               </div>
-              <Dialog.Title className="text-lg font-bold text-white/90 tracking-tight">
+              <Dialog.Title className="text-[15px] font-semibold tracking-tight text-white">
                 {t('recovery.title')}
               </Dialog.Title>
-              <p className="text-[12.5px] text-white/35 mt-1.5 leading-relaxed max-w-[280px]">
+              <p className="mt-1 max-w-[280px] text-[13px] leading-snug text-[#ffffff99]">
                 {t('recovery.description')}
               </p>
             </div>
 
-            {/* Body */}
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {bodyState === 'oauth' && (
-                <div className="flex flex-col items-center gap-3 py-2">
-                  <div className="w-8 h-8 rounded-full border-2 border-white/[0.06] border-t-accent animate-spin" />
-                  <p className="text-[11.5px] text-white/45">{stepLabel}</p>
+                <div className="flex flex-col items-center gap-2 py-2">
+                  <div className="ui-spinner size-7" />
+                  <p className="text-[13px] text-[#ffffff99]">{stepLabel}</p>
                   {authUrl && (
                     <button
                       type="button"
@@ -132,7 +91,7 @@ export const SessionRecoveryModal = React.memo(() => {
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-[11px] text-white/30 hover:text-white/50 transition-all cursor-pointer"
+                      className="btn-secondary h-8 px-3 text-[12px]"
                     >
                       {copied ? (
                         <>
@@ -151,33 +110,25 @@ export const SessionRecoveryModal = React.memo(() => {
               )}
 
               {bodyState === 'renewing' && (
-                <div className="flex flex-col items-center gap-3 py-2">
-                  <div className="w-8 h-8 rounded-full border-2 border-white/[0.06] border-t-accent animate-spin" />
-                  <p className="text-[11.5px] text-white/45">{t('recovery.renewing')}</p>
+                <div className="flex flex-col items-center gap-2 py-2">
+                  <div className="ui-spinner size-7" />
+                  <p className="text-[13px] text-[#ffffff99]">{t('recovery.renewing')}</p>
                 </div>
               )}
 
               {bodyState === 'actions' && (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => void retryRenew()}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent text-accent-contrast font-semibold text-[13px] hover:bg-accent-hover active:scale-[0.97] transition-all duration-200 cursor-pointer shadow-[0_0_30px_var(--color-accent-glow),0_2px_8px_rgba(0,0,0,0.3)]"
-                  >
+                  <button type="button" onClick={() => void retryRenew()} className="btn-primary w-full">
                     <RefreshCw size={14} />
                     {t('recovery.retry')}
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleSignIn}
-                    className="w-full py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-[12.5px] text-white/55 hover:text-white/80 transition-all cursor-pointer"
-                  >
+                  <button type="button" onClick={handleSignIn} className="btn-secondary w-full">
                     {t('recovery.signIn')}
                   </button>
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] text-white/25 hover:text-white/45 hover:bg-white/[0.03] transition-all cursor-pointer"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-[12px] text-[#ffffff99] hover:bg-white/5 hover:text-white transition-colors cursor-pointer"
                   >
                     <Power size={12} />
                     {t('recovery.logout')}

@@ -124,8 +124,6 @@ impl TracksService {
         Ok(result)
     }
 
-    /// Cold read /tracks/{urn}: сначала indexed_tracks, на miss — SC + upsert.
-    /// secret_token-запросы (приватные треки) идут мимо кеша.
     pub async fn get_by_id(
         &self,
         token: &str,
@@ -153,9 +151,7 @@ impl TracksService {
             if let Some((j, synced_at)) = cached {
                 let pg = self.pg.clone();
                 let id = sc_track_id.clone();
-                // Условный UPDATE: на горячих треках (тысячи rps на топ-100)
-                // переписывать строку каждый раз — лишний нагруз. Достаточно
-                // обновлять раз в 5 минут, eviction-cutoff гораздо длиннее.
+
                 tokio::spawn(async move {
                     let _ = sqlx::query(
                         "UPDATE indexed_tracks SET last_read_at = now() \
@@ -248,8 +244,6 @@ impl TracksService {
         .await
     }
 
-    /// Оптимистичный комментарий: всегда через sync_queue. Фронт не получает
-    /// сам comment-payload (SC отдаст id позже после синка) — только подтверждение.
     pub async fn create_comment(
         &self,
         sc_user_id: &str,

@@ -17,9 +17,6 @@ pub async fn execute(ctx: &ActionCtx<'_>) -> AppResult<()> {
     let is_public = created.get("sharing").and_then(|v| v.as_str()) == Some("public");
 
     let mut tx = ctx.pg.begin().await?;
-    // Приватный subset идёт в собственное зеркало юзера, чтобы /me/playlists
-    // сразу вернул новый плейлист со всеми приватными полями. В shared
-    // cached_playlists зеркалируем только public-копию — её увидят все.
     if is_public {
         sqlx::query(
             "INSERT INTO cached_playlists (playlist_urn, payload, synced_at) \

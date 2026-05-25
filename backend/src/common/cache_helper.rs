@@ -7,10 +7,6 @@ use crate::common::response::json_response;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
-/// Прозрачный read-through cache над любым endpoint'ом, возвращающим JSON.
-/// Промах кеша — выполняем `fetch`, кладём результат в Redis, возвращаем.
-/// `cache_key` — опциональный bucket для invalidate_by_cache_keys (например
-/// для invalidate'a при мутациях по target).
 pub async fn cached_or_fetch<F, Fut>(
     st: &AppState,
     method: &str,

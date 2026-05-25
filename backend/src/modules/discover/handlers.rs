@@ -424,9 +424,6 @@ async fn fetch_artists(
         }
     }
 
-    // order_clause — статичный whitelist (см. match выше), параметризация не
-    // нужна и физически невозможна (PostgreSQL не принимает параметры в
-    // ORDER BY).
     qb.push(" ORDER BY ")
         .push(order_clause)
         .push(" LIMIT ")
@@ -521,10 +518,6 @@ async fn fetch_albums(
                     .push("))");
             }
             _ => {
-                // Курсор по recent — `release_date` (days since epoch) + tie-breakers.
-                // chrono::Duration::days принимает только i64 без overflow check,
-                // но days from f64 на любом разумном диапазоне (≤ 36500 = 100 лет)
-                // безопасно конвертируется.
                 let cursor_date = NaiveDate::from_ymd_opt(1970, 1, 1)
                     .expect("static date 1970-01-01")
                     .checked_add_signed(chrono::Duration::days(c.p2 as i64))

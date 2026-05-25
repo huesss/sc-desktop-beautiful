@@ -44,12 +44,10 @@ async fn main() {
         crate::stream::proxy::install_relay(r);
     }
 
-    // PostgreSQL
     let pg = PgPool::connect(&config)
         .await
         .expect("Failed to connect to PostgreSQL");
 
-    // HTTP client
     let http_client = reqwest::Client::builder()
         .tcp_nodelay(true)
         .pool_max_idle_per_host(16)
@@ -59,14 +57,11 @@ async fn main() {
         .build()
         .expect("Failed to build HTTP client");
 
-    // Anon client (shared client_id cache)
     let anon = Arc::new(AnonClient::new(
         http_client.clone(),
         config.sc_proxy_url.clone(),
     ));
 
-    // Cookies pool (optional). Каждая строка SC_COOKIES — отдельная сессия;
-    // на 429 ротируется к следующей.
     let cookies = if config.cookies_enabled() {
         let pool = Arc::new(CookiesPool::new(
             http_client.clone(),
@@ -181,7 +176,7 @@ async fn build_call_relay(role: &str) -> Option<std::sync::Arc<call_relay::Clien
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         relay_secret,
         policy: call_relay::tiers::Policy {
-            // Только client-тир — direct/proxy выполняет вызывающая сторона.
+
             order: vec![call_relay::Tier::Client],
             timeout_ms: 180_000,
             fallback_on_status_5xx: true,

@@ -1,9 +1,4 @@
-//! Progressive + HLS downloaders for the anon SC stream path.
-//!
-//! Direct GETs against SoundCloud media hosts — no proxies, no retries
-//! beyond what `reqwest` already handles, and no segment-level recovery
-//! (a segment failure aborts the whole download so the caller can fall
-//! back to the streaming server).
+
 
 use bytes::{Bytes, BytesMut};
 use reqwest::Client;
@@ -11,7 +6,6 @@ use url::Url;
 
 const HLS_PREFETCH_SEGMENTS: usize = 3;
 
-/// Fetch a single-file (progressive) audio stream.
 pub async fn download_progressive(client: &Client, url: &str) -> Result<Bytes, String> {
     let data = fetch_bytes(client, url).await?;
     if data.is_empty() {
@@ -20,7 +14,6 @@ pub async fn download_progressive(client: &Client, url: &str) -> Result<Bytes, S
     Ok(data)
 }
 
-/// Fetch + concat every segment of an HLS playlist.
 pub async fn download_hls_full(client: &Client, m3u8_url: &str) -> Result<Bytes, String> {
     let m3u8_text = fetch_bytes(client, m3u8_url).await?;
     let m3u8_content = String::from_utf8_lossy(&m3u8_text);

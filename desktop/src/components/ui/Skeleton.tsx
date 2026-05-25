@@ -6,7 +6,7 @@ interface SkeletonProps {
 const roundedMap = {
   sm: 'rounded',
   md: 'rounded-lg',
-  lg: 'rounded-2xl',
+  lg: 'rounded-lg',
   full: 'rounded-full',
 };
 

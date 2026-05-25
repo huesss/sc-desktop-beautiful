@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "soundcloud-desktop",
-  "version": "7.5.1",
+  "version": "7.5.0",
   "identifier": "com.soundcloud.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "SoundCloud Desktop",
-        "width": 1200,
-        "height": 800,
+        "width": 1658,
+        "height": 868,
         "minWidth": 800,
         "minHeight": 470,
         "decorations": false

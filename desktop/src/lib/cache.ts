@@ -11,7 +11,7 @@ const CACHE_MAINTENANCE_INTERVAL_MS = 60 * 1000;
 
 let cacheMaintenanceStarted = false;
 
-/* ── Track cache (Rust) ─────────────────────────────────── */
+
 
 export interface TrackCacheInfo {
   path: string;
@@ -111,7 +111,7 @@ export function enforceAudioCacheLimit(
   return invoke('track_enforce_cache_limit', { limitMb });
 }
 
-/* ── Cache maintenance ───────────────────────────────────── */
+
 
 export function setupCacheMaintenance() {
   if (cacheMaintenanceStarted) return;
@@ -130,7 +130,7 @@ export function setupCacheMaintenance() {
   }, CACHE_MAINTENANCE_INTERVAL_MS);
 }
 
-/* ── Image cache (permanent, Rust) ───────────────────────── */
+
 
 export function getImageCacheSize(): Promise<number> {
   return invoke<number>('image_cache_size');
@@ -140,7 +140,7 @@ export function clearImageCache(): Promise<void> {
   return invoke('image_cache_clear');
 }
 
-/* ── Wallpapers ──────────────────────────────────────────── */
+
 
 let wallpapersBasePath: string | null = null;
 
@@ -160,7 +160,7 @@ function extensionFromType(mime: string): string {
   return '.jpg';
 }
 
-/** Скачивает картинку по URL и сохраняет в wallpapers/. Возвращает имя файла. */
+
 export async function downloadWallpaper(url: string): Promise<string> {
   const res = await tauriFetch(url);
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
@@ -174,7 +174,7 @@ export async function downloadWallpaper(url: string): Promise<string> {
   return name;
 }
 
-/** Сохраняет ArrayBuffer (из input type=file) как wallpaper. Возвращает имя файла. */
+
 export async function saveWallpaperFromBuffer(
   buffer: ArrayBuffer,
   fileName: string,
@@ -187,7 +187,7 @@ export async function saveWallpaperFromBuffer(
   return name;
 }
 
-/** Получить имена всех сохранённых wallpapers */
+
 export async function listWallpapers(): Promise<string[]> {
   try {
     const dir = await getWallpapersDir();
@@ -204,21 +204,21 @@ export async function listWallpapers(): Promise<string[]> {
   }
 }
 
-/** Удалить wallpaper по имени файла */
+
 export async function removeWallpaper(name: string): Promise<void> {
   const dir = await getWallpapersDir();
   const path = await join(dir, name);
   await remove(path).catch(() => {});
 }
 
-/** HTTP URL для wallpaper по имени файла */
+
 export function getWallpaperUrl(name: string): string | null {
   const port = getStaticPort();
   if (!port) return null;
   return `http://127.0.0.1:${port}/wallpapers/${encodeURIComponent(name)}`;
 }
 
-/* ── Track Download ──────────────────────────────────────── */
+
 
 function sanitizeFilename(name: string): string {
   return name

@@ -26,7 +26,6 @@ pub enum TranscodeError {
     },
 }
 
-/// Готовит tmp-путь для одного m4a-выхода ffmpeg-а в `result_dir`.
 pub fn stage_output(result_dir: &str, filename: &str) -> PathBuf {
     let dir = PathBuf::from(result_dir);
     let id = Uuid::new_v4();
@@ -50,8 +49,6 @@ pub async fn probe_duration(path: &Path, ffprobe_bin: &str) -> Option<f64> {
     String::from_utf8_lossy(&output.stdout).trim().parse().ok()
 }
 
-/// Один ffmpeg-вызов с N входами и N выходами (AAC m4a, +faststart для стрима).
-/// Все треки декодятся в одном процессе — экономим старт ffmpeg / парсинг argv.
 pub async fn run_ffmpeg_batch(
     ffmpeg_bin: &str,
     inputs: &[&Path],

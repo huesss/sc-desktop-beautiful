@@ -115,8 +115,7 @@ impl StorageClient {
                         filename,
                         data.len() as f64 / 1024.0 / 1024.0
                     );
-                    // storage.track_uploaded NATS event теперь публикует сам storage —
-                    // он узнаёт о реальном завершении S3 PUT после ретраев, а не о HTTP 200.
+
                 }
                 Err(e) => {
                     let prev = consec.fetch_add(1, Ordering::Relaxed);

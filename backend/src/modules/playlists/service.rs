@@ -113,10 +113,6 @@ impl PlaylistsService {
         .await
     }
 
-    /// Создание плейлиста — без cold: фронту нужен URN сразу. Идём в SC, на
-    /// ban-ответ кладём в sync_queue с nonce-URN (несколько параллельных
-    /// create'ов одного юзера не должны дедупиться друг с другом). cached_*
-    /// заполнит refresh_owned_playlists по следующему чтению /me/playlists.
     pub async fn create(&self, token: &str, sc_user_id: &str, body: &Value) -> AppResult<Value> {
         match self
             .sc
@@ -139,9 +135,6 @@ impl PlaylistsService {
         }
     }
 
-    /// Cold-read /playlists/{urn}: cached_playlists → miss → SC + upsert.
-    /// Query-params (access/show_tracks/secret_token) учитываются только при
-    /// miss — кеш на URN-уровне общий. secret_token-запросы идут мимо кеша.
     pub async fn get_by_id(
         &self,
         token: &str,
@@ -207,8 +200,6 @@ impl PlaylistsService {
         Ok(fetched)
     }
 
-    /// Оптимистичный update: только enqueue. SC-вызов и инвалидация
-    /// cached_playlists произойдут в action handler'е.
     pub async fn update(
         &self,
         sc_user_id: &str,
@@ -225,9 +216,6 @@ impl PlaylistsService {
         }))
     }
 
-    /// Оптимистичный delete: убираем строку из user_owned_playlists (UI сразу
-    /// перестаёт показывать плейлист в /me/playlists), очищаем cached_playlists
-    /// и его tracks-mirror. SC delete — фоном через worker.
     pub async fn delete(&self, sc_user_id: &str, playlist_urn: &str) -> AppResult<Value> {
         let mut tx = self.pg.begin().await?;
         sqlx::query("DELETE FROM user_owned_playlists WHERE user_id = $1 AND playlist_urn = $2")

@@ -21,7 +21,6 @@ pub struct UploadResponse {
     pub duration_secs: f64,
 }
 
-/// RAII guard — any reserved tmp bytes get released on drop, even on panic / early return.
 struct TmpReservation<'a> {
     state: &'a AppState,
     bytes: u64,
@@ -32,8 +31,6 @@ impl<'a> TmpReservation<'a> {
         Self { state, bytes: 0 }
     }
 
-    /// Try to reserve `n` more bytes. Returns false if reservation would exceed the limit;
-    /// in that case the counter is rolled back and nothing is charged.
     fn try_add(&mut self, n: u64) -> bool {
         let Some(limit) = self.state.config.tmp_max_bytes else {
             self.bytes = self.bytes.saturating_add(n);
@@ -59,9 +56,6 @@ impl Drop for TmpReservation<'_> {
     }
 }
 
-/// Reconcile the in-memory counter with the real filesystem state.
-/// Needed to recover from external cleanup (manual `rm`, cron janitor) —
-/// otherwise the counter stays artificially high forever.
 async fn rescan_tmp_usage(state: &AppState) {
     let Ok(mut guard) = state.tmp_rescan_lock.try_lock() else {
         return;
@@ -257,7 +251,6 @@ fn sanitize_filename(s: &str) -> String {
         .to_string()
 }
 
-/// Recursive walk — intended for one-shot startup seeding only. NEVER call on the hot path.
 pub async fn dir_size_bytes(path: &str) -> std::io::Result<u64> {
     let mut total: u64 = 0;
     let mut stack: Vec<std::path::PathBuf> = vec![std::path::PathBuf::from(path)];

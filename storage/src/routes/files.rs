@@ -19,7 +19,6 @@ fn validate_path(path: &str) -> Result<(), StatusCode> {
     Ok(())
 }
 
-/// GET /{path} — stream bytes to client (never redirect, even for S3 backend).
 pub async fn serve(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
@@ -52,9 +51,6 @@ pub async fn serve(
     Ok(builder.body(Body::from_stream(stream)).unwrap())
 }
 
-/// GET /redirect/{path} — stable URL for AI pipeline workers.
-/// S3 backend: 307 → freshly-signed presigned URL (worker follows to S3 directly).
-/// Local backend: stream bytes from storage itself.
 pub async fn redirect(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
@@ -81,7 +77,6 @@ pub async fn redirect(
     }
 }
 
-/// HEAD /{path} — existence + size check only (no body download from S3).
 pub async fn head(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
@@ -114,7 +109,6 @@ pub async fn head(
     Ok(builder.body(Body::empty()).unwrap())
 }
 
-/// DELETE /files/{filename} — delete the single m4a track
 pub async fn delete(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,

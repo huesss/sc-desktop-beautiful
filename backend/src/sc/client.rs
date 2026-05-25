@@ -344,7 +344,7 @@ impl ScClient {
         }
 
         if !api_call {
-            // auth: direct → proxy → relay
+
             return self
                 .try_chain(
                     method,
@@ -358,7 +358,7 @@ impl ScClient {
 
         if pf {
             if is_get {
-                // direct → race(relay, proxy)
+
                 match self
                     .send_direct(method.clone(), target_url, headers.clone(), body.clone())
                     .await

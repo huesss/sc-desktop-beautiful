@@ -13,11 +13,6 @@ use crate::db::postgres::SessionInfo;
 use crate::error::AppError;
 use crate::AppState;
 
-/// Верхняя граница на один запрос — не даём каскадам fallback'ов
-/// удерживать клиентское подключение бесконечно.
-/// `/stream` может долго гонять oauth ретраи + cookies + restricted, поэтому потолок выше.
-/// `/download` отдаёт только метаданные, ему хватает минуты.
-/// Оба чуть ниже клиентских read_timeout'ов, чтобы сервер успевал ответить первым.
 pub(crate) const STREAM_DEADLINE: Duration = Duration::from_secs(120);
 pub(crate) const DOWNLOAD_DEADLINE: Duration = Duration::from_secs(60);
 
@@ -46,13 +41,6 @@ pub async fn resolve_track(
     }
 }
 
-/// GET /stream/:track_urn — единый endpoint.
-///
-/// * `premium_only` хост и не-премиум юзер → 403.
-/// * `hq=true` без премиум → 403 (HQ требует подписки).
-/// * Дальше каскад по `hq`:
-///   - HQ: oauth(hq) → cookies(hq) → restricted(hq) → oauth(sq) → anon → cookies(sq) → restricted(sq).
-///   - SQ: oauth → anon → cookies (если премиум) → restricted(sq).
 pub async fn stream(
     state: State<AppState>,
     track_urn: Path<String>,
@@ -97,7 +85,6 @@ async fn stream_inner(
 
     let tag = "[stream]";
 
-    // CDN first
     if let Some(cdn_url) = state.storage.try_serve(&track_urn).await {
         info!("{tag} {track_urn} → CDN redirect");
         return Ok(Redirect::temporary(&cdn_url).into_response());
@@ -156,8 +143,6 @@ async fn stream_inner(
     Err(AppError::NoStream)
 }
 
-// ── Premium check ─────────────────────────────────────────────
-
 pub(crate) async fn check_is_premium(state: &AppState, session: &SessionInfo) -> bool {
     let Some(user) = session.soundcloud_user_id.as_deref() else {
         return false;
@@ -169,8 +154,6 @@ pub(crate) async fn check_is_premium(state: &AppState, session: &SessionInfo) ->
     };
     state.pg.is_premium(&user_urn).await.unwrap_or(false)
 }
-
-// ── Fallback helpers ──────────────────────────────────────────
 
 async fn try_oauth(
     state: &AppState,
@@ -274,7 +257,6 @@ async fn try_restricted(
         }
     };
 
-    // Стримим клиенту чанками + копим, по завершении кэшируем в storage.
     let acc = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
     let acc_w = acc.clone();
     let storage = state.storage.clone();
@@ -302,8 +284,6 @@ async fn try_restricted(
             .unwrap(),
     )
 }
-
-// ── Shared ────────────────────────────────────────────────────
 
 pub(crate) fn extract_session_id(
     headers: &HeaderMap,

@@ -1,16 +1,4 @@
-//! Единый алгоритм сопоставления (artist, title) между внешним источником
-//! и SoundCloud-треком. Используется wanted_resolver, sc_account_scan и
-//! артист-кролером для линковки.
-//!
-//! Идея — три ступени, score 0..1:
-//!   - exact (нормализованный): 1.0
-//!   - compact (без пробелов и пунктуации): 0.95
-//!   - substring с порогом длины: 0.6..0.8
-//!   - prefix-/suffix-/n-gram fuzzy: 0.4..0.6
-//!
-//! Отдельно — артист score (имя SC-аплоадера / имя в БД).
-//!
-//! Никаких внешних запросов; чистая функция.
+
 
 use serde_json::Value;
 
@@ -18,7 +6,6 @@ use crate::modules::enrich::normalize::{
     compact_title, normalize_name, normalize_title, parse_sc_title,
 };
 
-/// Финальный результат matching'а одного SC-кандидата против wanted-трека.
 #[derive(Debug, Clone)]
 pub struct TrackMatch {
     pub title_score: f32,
@@ -36,9 +23,7 @@ pub enum DurationMatch {
 }
 
 impl TrackMatch {
-    /// Композитный score 0..1.
-    /// ISRC совпадение → сразу 1.0.
-    /// Иначе — title × 0.55 + artist × 0.35 + duration × 0.10.
+
     pub fn score(&self) -> f32 {
         if self.isrc_match {
             return 1.0;
@@ -53,12 +38,6 @@ impl TrackMatch {
     }
 }
 
-/// Title score между «целевым» (то что мы ищем — например, wanted_track.title)
-/// и «кандидатом» (то что нам отдал SC — может содержать "Artist - " префикс,
-/// feat-блок, шум типа [Free DL]).
-///
-/// `cand_uploader_username` помогает parse_sc_title правильно отделить артиста
-/// в случае если в title нет дефиса.
 pub fn title_score(
     target_title: &str,
     cand_title: &str,
@@ -88,7 +67,7 @@ pub fn title_score(
     let min_len = 6;
     if target_compact.len() >= min_len {
         if cleaned_compact.contains(&target_compact) || raw_compact.contains(&target_compact) {
-            // целевая короче кандидата — кандидат «покрывает» wanted
+
             return 0.75;
         }
         if !cleaned_compact.is_empty()
@@ -99,7 +78,6 @@ pub fn title_score(
         }
     }
 
-    // n-gram (триграмм) пересечение, нормализованный по target.
     let trigram_ratio = trigram_overlap(&cleaned_compact, &target_compact)
         .max(trigram_overlap(&raw_compact, &target_compact));
     if trigram_ratio >= 0.7 {
@@ -111,9 +89,6 @@ pub fn title_score(
     0.0
 }
 
-/// Artist score: target = ожидаемое имя артиста (как у нас в БД),
-/// cand_uploader_username = SC username аплоадера,
-/// cand_title_parsed_artist = первый primary_artist парсера тайтла кандидата.
 pub fn artist_score(
     target_artist: &str,
     cand_uploader_username: Option<&str>,
@@ -121,8 +96,7 @@ pub fn artist_score(
 ) -> f32 {
     let target_n = normalize_name(target_artist);
     if target_n.is_empty() {
-        // Без эталонного имени артиста сравнивать не с чем — даём нейтральный 0.5
-        // чтобы не убивать score для wanted_tracks без artist'а.
+
         return 0.5;
     }
     let parsed_n = cand_title_parsed_artist
@@ -156,7 +130,7 @@ fn single_artist_score(target_n: &str, cand_n: &str) -> f32 {
     }
     if target_compact.len() >= 4 && cand_compact.len() >= 4 {
         if target_compact.contains(&cand_compact) || cand_compact.contains(&target_compact) {
-            // короче должно покрывать ≥ половину длинного, иначе слишком мягко
+
             let short = target_compact.len().min(cand_compact.len());
             let long = target_compact.len().max(cand_compact.len());
             if short * 2 >= long {
@@ -224,7 +198,6 @@ fn trigram_overlap(a: &str, b: &str) -> f32 {
     jaccard_ratio(&ngram_set(a, 3), &ngram_set(b, 3))
 }
 
-/// Извлечь sc_track_id из urn-строки (`soundcloud:tracks:1234`).
 pub fn sc_track_id_from_urn(urn: &str) -> Option<String> {
     urn.rsplit(':')
         .next()
@@ -232,7 +205,6 @@ pub fn sc_track_id_from_urn(urn: &str) -> Option<String> {
         .map(String::from)
 }
 
-/// Удобный helper: посчитать TrackMatch для SC-сырого кандидата против wanted-задачи.
 pub fn evaluate_sc_candidate(
     cand: &Value,
     wanted_title: &str,
@@ -272,7 +244,7 @@ mod tests {
 
     #[test]
     fn title_compact_diff_punctuation() {
-        // wanted: "1000-7?что ты сказал?" vs SC: "Psychosis, Pxlsdead - 1000 - 7что Ты Сказал"
+
         let s = title_score(
             "1000-7?что ты сказал?",
             "Psychosis, Pxlsdead - 1000 - 7что Ты Сказал",
@@ -284,7 +256,7 @@ mod tests {
     #[test]
     fn title_substring_short_in_long() {
         let s = title_score("100-7", "psychosis - 100-7 (slowed reverb)", None);
-        // wanted "100 7" короче, кандидат содержит → 0.75 минимум
+
         assert!(s >= 0.75, "expected substring match >= 0.75, got {s}");
     }
 
@@ -302,14 +274,14 @@ mod tests {
 
     #[test]
     fn artist_substring_with_suffix() {
-        // в БД "ultimathule (RUS)", uploader "ultimathule"
+
         let s = artist_score("ultimathule (RUS)", Some("ultimathule"), None);
         assert!(s >= 0.85, "expected substring artist match, got {s}");
     }
 
     #[test]
     fn artist_no_target_neutral() {
-        // wanted без артиста — не убиваем score
+
         let s = artist_score("", Some("anyone"), None);
         assert!((s - 0.5).abs() < 1e-6);
     }

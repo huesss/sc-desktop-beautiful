@@ -42,10 +42,10 @@ export const TrackTitleArtist = React.memo(function TrackTitleArtist({
       <p
         className={`${TITLE_CLS[size]} font-medium truncate transition-colors duration-150 ${
           highlight
-            ? 'text-accent drop-shadow-[0_0_8px_rgba(255,85,0,0.4)]'
+            ? 'text-accent drop-'
             : isWanted
-              ? 'text-white/55'
-              : 'text-white/90 hover:text-white cursor-pointer'
+              ? 'text-[#ffffff99]'
+              : 'text-white hover:text-white cursor-pointer'
         }`}
         onClick={isWanted ? undefined : () => navigate(`/track/${encodeURIComponent(track.urn)}`)}
       >
@@ -53,14 +53,14 @@ export const TrackTitleArtist = React.memo(function TrackTitleArtist({
       </p>
       <p
         className={`${ARTIST_CLS[size]} truncate mt-0.5 flex items-center gap-1 ${
-          isWanted ? 'text-white/30' : 'text-white/40 cursor-pointer hover:text-white/70'
+          isWanted ? 'text-[#ffffff99]' : 'text-[#ffffff99] cursor-pointer hover:text-[#ffffff99]'
         } transition-colors`}
         onClick={artistTarget && !isWanted ? () => navigate(artistTarget) : undefined}
       >
         <UploadKindDot kind={artistDisplay.uploadKind} />
         <span className="truncate">{artistDisplay.primary}</span>
         {isWanted && (
-          <span className="text-[10px] text-white/25 ml-1">
+          <span className="text-[10px] text-[#ffffff99] ml-1">
             · {t('track.notFoundOnSc', 'not found on SoundCloud')}
           </span>
         )}

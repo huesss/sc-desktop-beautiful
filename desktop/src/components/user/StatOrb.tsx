@@ -4,27 +4,16 @@ import { fc } from '../../lib/formatters';
 interface StatOrbProps {
   value: number | null | undefined;
   label: string;
-  accent: string;
+  accent?: string;
 }
 
-function StatOrbImpl({ value, label, accent }: StatOrbProps) {
+function StatOrbImpl({ value, label }: StatOrbProps) {
   return (
-    <div
-      className="relative px-5 py-3 rounded-2xl flex items-baseline gap-2.5 transition-all duration-500 hover:scale-[1.04]"
-      style={{
-        background: 'rgba(255,255,255,0.04)',
-        border: '0.5px solid rgba(255,255,255,0.08)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-        boxShadow: `inset 0 0.5px 0 rgba(255,255,255,0.08), 0 8px 24px ${accent}`,
-      }}
-    >
-      <span className="text-[20px] font-black tabular-nums tracking-tight text-white">
+    <div className="rounded-md border border-white/10 bg-[#141414] px-4 py-3">
+      <div className="text-xl font-semibold tabular-nums tracking-tight text-white">
         {value != null ? fc(value) : '—'}
-      </span>
-      <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
-        {label}
-      </span>
+      </div>
+      <div className="mt-0.5 text-[11px] font-medium text-[#ffffff99]">{label}</div>
     </div>
   );
 }

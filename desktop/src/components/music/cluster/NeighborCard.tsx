@@ -42,7 +42,7 @@ export const NeighborCard = React.memo(function NeighborCard({ neighbor, track, 
     <button
       type="button"
       onClick={togglePlay}
-      className="group relative w-full text-left rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[var(--ease-apple)] hover:scale-[1.02] active:scale-[0.99]"
+      className="group relative w-full text-left rounded-lg overflow-hidden cursor-pointer transition-all duration-500 ease-[var(--ease-apple)] hover:scale-[1.02] active:scale-[0.99]"
       style={{
         background: 'rgba(255,255,255,0.025)',
         border: '0.5px solid color-mix(in srgb, var(--color-accent) 18%, transparent)',
@@ -60,16 +60,8 @@ export const NeighborCard = React.memo(function NeighborCard({ neighbor, track, 
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-[var(--ease-apple)] group-hover:scale-[1.06]"
           />
         ) : (
-          <div className="absolute inset-0 bg-white/[0.04]" />
+          <div className="absolute inset-0 bg-[#141414]" />
         )}
-
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 35%, transparent) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.55) 90%)',
-          }}
-        />
 
         <span
           onClick={openArtist}
@@ -85,8 +77,6 @@ export const NeighborCard = React.memo(function NeighborCard({ neighbor, track, 
           style={{
             background: 'rgba(0,0,0,0.55)',
             border: '0.5px solid color-mix(in srgb, var(--color-accent) 50%, transparent)',
-            backdropFilter: 'blur(14px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(14px) saturate(160%)',
             boxShadow: '0 6px 16px rgba(0,0,0,0.4), 0 0 10px var(--color-accent-glow)',
           }}
         >
@@ -125,8 +115,8 @@ export const NeighborCard = React.memo(function NeighborCard({ neighbor, track, 
       </div>
 
       <div className="px-3 py-2.5">
-        <p className="text-[12.5px] font-semibold text-white/95 truncate">{track.title}</p>
-        <p className="text-[10.5px] text-white/40 truncate mt-0.5">{track.user.username}</p>
+        <p className="text-[12.5px] font-semibold text-white truncate">{track.title}</p>
+        <p className="text-[10.5px] text-[#ffffff99] truncate mt-0.5">{track.user.username}</p>
       </div>
     </button>
   );

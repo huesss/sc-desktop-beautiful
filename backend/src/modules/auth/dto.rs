@@ -102,16 +102,16 @@ pub struct AuthStatusResponse {
     pub oauth_app_id: Option<String>,
     #[serde(rename = "expiresAt", skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<NaiveDateTime>,
-    /// Сколько секунд осталось до истечения access_token (отрицательное = expired).
+
     #[serde(rename = "expiresInSec", skip_serializing_if = "Option::is_none")]
     pub expires_in_sec: Option<i64>,
-    /// Состояние свежести: ok | stale (нужен refresh скоро) | expired.
+
     #[serde(rename = "tokenState")]
     pub token_state: String,
-    /// Размер очереди фоновых мутаций (для UI индикатора).
+
     #[serde(rename = "pendingSyncCount")]
     pub pending_sync_count: i64,
-    /// Размер очереди, по которым исчерпан retry (visible под "что-то пошло не так").
+
     #[serde(rename = "failedSyncCount")]
     pub failed_sync_count: i64,
 }

@@ -36,7 +36,6 @@ pub struct AnonStreamResult {
     pub content_type: &'static str,
 }
 
-/// Shared client_id cache
 pub struct AnonClient {
     client: Client,
     proxy_url: String,
@@ -168,7 +167,6 @@ impl AnonClient {
         }
     }
 
-    /// Get stream for track via anon API v2
     pub async fn get_stream(
         self: &Arc<Self>,
         track_urn: &str,
@@ -185,7 +183,6 @@ impl AnonClient {
 
         let transcodings = track.media.as_ref().and_then(|m| m.transcodings.as_ref());
 
-        // If no transcodings — refresh client_id and retry track fetch
         let transcodings = match transcodings {
             Some(t) if !t.is_empty() => t,
             _ => {
@@ -204,7 +201,6 @@ impl AnonClient {
                     .and_then(|m| m.transcodings.as_ref())
                 {
                     Some(t) if !t.is_empty() => {
-                        // Return immediately from the retry path
                         return self
                             .stream_from_transcodings(t, retry_track.track_authorization.as_deref())
                             .await;
@@ -225,7 +221,6 @@ impl AnonClient {
             Ok(Some(r)) => Ok(Some(r)),
             Ok(None) => Ok(None),
             Err(e) => {
-                // Stream failed — refresh client_id and retry
                 warn!("[anon] stream failed for {track_id}, refreshing client_id: {e}");
                 self.invalidate_and_refresh().await?;
                 let retry_track = match self.get_track_by_id(track_id).await {
@@ -261,8 +256,6 @@ impl AnonClient {
         }
 
         let mut last_err: Option<Box<dyn std::error::Error + Send + Sync>> = None;
-        // 404 on every transcoding = restricted track, not stale client_id:
-        // bail to oauth/cookies instead of refreshing+looping.
         let mut only_resource_gone = true;
         for t in ranked {
             let mime = t
@@ -389,8 +382,6 @@ impl AnonClient {
         .await
     }
 
-    /// `(transcodings, track_authorization, client_id)` — собрано из anon API v2.
-    /// Пустые поля выкидываются ошибкой, чтобы вызывающий мог упасть на fallback.
     pub(crate) async fn fetch_track_meta(
         &self,
         track_urn: &str,
@@ -449,8 +440,6 @@ impl AnonClient {
     }
 }
 
-/// Return all valid transcodings ranked: progressive first (safest — single
-/// GET, no chunk-level failures), then HLS by preset preference.
 fn ranked_transcodings(transcodings: &[Transcoding]) -> Vec<&Transcoding> {
     let candidates: Vec<&Transcoding> = transcodings
         .iter()
@@ -477,7 +466,6 @@ fn ranked_transcodings(transcodings: &[Transcoding]) -> Vec<&Transcoding> {
 
     let mut ordered: Vec<&Transcoding> = Vec::with_capacity(candidates.len());
 
-    // 1. Progressive first (ranked by same preset order)
     for preset in PRESET_ORDER {
         if let Some(t) = candidates
             .iter()
@@ -492,7 +480,6 @@ fn ranked_transcodings(transcodings: &[Transcoding]) -> Vec<&Transcoding> {
         }
     }
 
-    // 2. HLS by preset preference
     for preset in PRESET_ORDER {
         if let Some(t) = candidates
             .iter()
@@ -501,7 +488,6 @@ fn ranked_transcodings(transcodings: &[Transcoding]) -> Vec<&Transcoding> {
             ordered.push(t);
         }
     }
-    // 3. Any remainder
     for t in &candidates {
         if !ordered.iter().any(|o| std::ptr::eq(*o, *t)) {
             ordered.push(t);
@@ -510,7 +496,6 @@ fn ranked_transcodings(transcodings: &[Transcoding]) -> Vec<&Transcoding> {
     ordered
 }
 
-/// Extract client_id from window.__sc_hydration on SC homepage
 fn extract_client_id_from_hydration(html: &str) -> Option<String> {
     let pattern = r#""hydratable"\s*:\s*"apiClient"\s*,\s*"data"\s*:\s*\{\s*"id"\s*:\s*"([^"]+)""#;
     let re = regex::Regex::new(pattern).ok()?;
@@ -561,8 +546,6 @@ mod tests {
 
         let ranked = ranked_transcodings(&transcodings);
 
-        // Restricted (cbc/ctr) variants are filtered out entirely: only the
-        // two legacy mp3_1_0 entries survive.
         assert_eq!(
             ranked.len(),
             2,
@@ -573,7 +556,6 @@ mod tests {
             "no encrypted transcoding may survive the filter"
         );
 
-        // First attempt: progressive mp3_1_0 (single GET, safest).
         let first = ranked[0];
         assert_eq!(protocol(first), "progressive");
         assert_eq!(first.preset.as_deref(), Some("mp3_1_0"));
@@ -582,7 +564,6 @@ mod tests {
             Some("audio/mpeg")
         );
 
-        // Fallback: the mp3_1_0 HLS variant.
         let second = ranked[1];
         assert_eq!(protocol(second), "hls");
         assert_eq!(second.preset.as_deref(), Some("mp3_1_0"));

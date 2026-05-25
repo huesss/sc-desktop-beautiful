@@ -16,10 +16,8 @@ type BoxErr = Box<dyn std::error::Error + Send + Sync>;
 const HLS_CONCURRENCY: usize = 3;
 const MAX_M3U8_REFRESH: usize = 2;
 
-// (optional fMP4 init, ordered media segments).
 pub type SegmentSource = (Option<String>, Vec<String>);
 
-// Re-resolves a fresh playlist when segment tokens expire mid-download.
 pub type M3u8Refresher = Arc<
     dyn Fn() -> Pin<Box<dyn Future<Output = Result<SegmentSource, BoxErr>> + Send>> + Send + Sync,
 >;
@@ -133,8 +131,6 @@ pub async fn download_progressive(
     Ok((data, mime_to_content_type(mime_type)))
 }
 
-// Per-segment proxy↔relay race; on terminal segment failure re-resolve via
-// refresher and resume from the failed index without dropping the buffer.
 pub async fn download_hls(
     client: &Client,
     proxy_url: &str,
@@ -159,7 +155,6 @@ pub async fn download_hls(
             audio_validator(),
         )
         .await?;
-        // Unsupported init payload variant — bail so the caller can fall back.
         if data.windows(4).any(|w| w == b"enca") {
             return Err("unsupported stream".into());
         }

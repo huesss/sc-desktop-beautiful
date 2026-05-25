@@ -14,14 +14,6 @@ static RE_SPLIT_ARTISTS: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)\s+(?:x|×|vs\.?|&|and|,|feat\.?|ft\.?|featuring)\s+|,\s*").unwrap()
 });
 
-/// Срезает префиксы-маркеры роли ("prod. by", "feat.", "remix by" и т.п.),
-/// которые могут просочиться в имя артиста из внешних источников (AI, Genius,
-/// текст в скобках треков SC). Намеренно НЕ матчит голые слова без явного
-/// маркера — иначе зарежет реальные имена вида «Prod Plague» или «With You.»:
-///   * `prod`/`produced` — только в связке `by`,
-///   * `feat`/`ft`       — только с точкой или в форме `featuring`,
-///   * `remix`/`edit`    — только в форме `… by`,
-///   * `w/`              — короткая запись «with».
 static RE_NAME_PREFIX_NOISE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r"(?ix)
@@ -81,9 +73,6 @@ pub fn normalize_title(s: &str) -> String {
     normalize_name(s)
 }
 
-/// Дополнительная "плотная" нормализация — alphanumeric only, без пробелов.
-/// Используется для сравнения титлов между источниками с разной пунктуацией
-/// (например, "1000-7?что ты сказал" vs "1000 - 7что Ты Сказал").
 pub fn compact_title(s: &str) -> String {
     normalize_title(s)
         .chars()
@@ -106,8 +95,7 @@ pub fn parse_sc_title(raw: &str, uploader: Option<&str>) -> ParsedTitle {
     let mut parsed = ParsedTitle::default();
 
     let (artist_part, title_part) = split_first_dash(&stripped);
-    // Префикс вида "01 - …" / "1 - …" — это номер трека в альбоме, а не имя
-    // артиста. Отбрасываем "артистную" часть, чтобы fallback ушёл на uploader.
+
     let artist_part = artist_part.filter(|a| !looks_like_track_number(a));
     let title_clean = title_part.trim().to_string();
     parsed.cleaned_title = if title_clean.is_empty() {
@@ -258,10 +246,7 @@ fn looks_like_track_number(s: &str) -> bool {
     if !t.chars().all(|c| c.is_ascii_digit()) {
         return false;
     }
-    // "01"-"09", "001"-"099" — track-number prefixes. "1"-"99" тоже:
-    // голые двузначные числа в начале SC-тайтла практически всегда означают
-    // номер. Длина 3 без ведущего нуля ("100"+) — оставляем, чтобы не
-    // зарезать реальных артистов «112», «311», «808».
+
     let n: u32 = t.parse().unwrap_or(u32::MAX);
     t.starts_with('0') || n <= 99
 }
@@ -313,20 +298,14 @@ mod tests {
 
     #[test]
     fn normalize_punctuation() {
-        // hyphens become spaces — "x-ray" => "x ray". This is intentional.
+
         assert_eq!(normalize_name("x-ray"), "x ray");
         assert_eq!(normalize_name("Don't Stop"), "dont stop");
     }
 
     #[test]
     fn compact_title_matches_psychosis_dupe() {
-        // Реальный кейс: на SC лежит трек с тайтлом
-        //   "Psychosis, Pxlsdead - 1000 - 7что Ты Сказал"
-        // Genius даёт wanted с тайтлом
-        //   "1000-7?что ты сказал?"
-        // parse_sc_title на SC должен отрезать префикс "Psychosis, Pxlsdead - ",
-        // оставив cleaned_title = "1000 - 7что Ты Сказал".
-        // compact_title обоих результатов должен совпасть.
+
         let parsed = parse_sc_title("Psychosis, Pxlsdead - 1000 - 7что Ты Сказал", None);
         let cleaned_compact = compact_title(&parsed.cleaned_title);
         let wanted_compact = compact_title("1000-7?что ты сказал?");
@@ -426,12 +405,11 @@ mod tests {
 
     #[test]
     fn clean_keeps_real_names_with_marker_words() {
-        // Реальный кейс из БД: артист «Prod Plague» — не должен превратиться
-        // в «Plague», потому что нет связки «prod by».
+
         assert_eq!(clean_artist_name("Prod Plague"), "Prod Plague");
-        // Аналогично: трек/имя «With You.» — без `w/` или маркера.
+
         assert_eq!(clean_artist_name("With You."), "With You.");
-        // Голое «ft» / «feat» без точки — оставляем (может быть частью имени).
+
         assert_eq!(clean_artist_name("ft Warykid"), "ft Warykid");
         assert_eq!(clean_artist_name("Feat Warykid"), "Feat Warykid");
         assert_eq!(clean_artist_name("Warykid"), "Warykid");
@@ -439,10 +417,7 @@ mod tests {
 
     #[test]
     fn parse_track_number_prefix_falls_back_to_uploader() {
-        // Реальный кейс: загрузчик «me.xa» льёт альбом с тайтлами вида
-        // "02 - Моя Страна Меня Не Любит". Раньше heuristic создавал артиста
-        // "02"; теперь "02" опознаётся как номер трека и primary идёт на
-        // uploader.
+
         let p = parse_sc_title("02 - Моя Страна Меня Не Любит", Some("me.xa"));
         assert_eq!(p.primary_artists, vec!["me.xa"]);
         assert_eq!(p.cleaned_title, "Моя Страна Меня Не Любит");
@@ -458,7 +433,7 @@ mod tests {
 
     #[test]
     fn parse_real_numeric_artist_keeps_name() {
-        // Реальный артист «112» (R&B) — 3 цифры без ведущего нуля, оставляем.
+
         let p = parse_sc_title("112 - Peaches & Cream", None);
         assert_eq!(p.primary_artists, vec!["112"]);
         assert_eq!(p.cleaned_title, "Peaches & Cream");
@@ -466,7 +441,7 @@ mod tests {
 
     #[test]
     fn parse_dedup_primary_in_featured() {
-        // "Artist - Title (feat. Artist)" — featured == primary, must dedup
+
         let p = parse_sc_title("Eminem - Track (feat. Eminem)", None);
         assert_eq!(p.primary_artists, vec!["Eminem"]);
         assert!(p.featured.is_empty());

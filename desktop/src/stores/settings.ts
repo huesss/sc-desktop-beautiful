@@ -15,16 +15,16 @@ export interface ThemePresetDef {
   accent: string;
   bg: string;
   name: string;
-  /** [accent, bg, card] for preview swatch */
+  
   preview: [string, string, string];
 }
 
 export const THEME_PRESETS: Record<Exclude<ThemePreset, 'custom'>, ThemePresetDef> = {
   soundcloud: {
-    accent: '#ff5500',
-    bg: '#08080a',
+    accent: '#00a843',
+    bg: '#0a0a0a',
     name: 'SoundCloud',
-    preview: ['#ff5500', '#08080a', '#1a1a1e'],
+    preview: ['#00a843', '#0a0a0a', '#141414'],
   },
   dark: {
     accent: '#ffffff',
@@ -66,6 +66,8 @@ export interface SettingsState {
   eqGains: number[];
   eqPreset: string;
   normalizeVolume: boolean;
+  crossfadeEnabled: boolean;
+  crossfadeSeconds: number;
   highQualityStreaming: boolean;
   bypassWhitelist: boolean;
   dpiBypass: boolean;
@@ -95,6 +97,8 @@ export interface SettingsState {
   setEqPreset: (preset: string) => void;
   setEqBand: (index: number, gain: number) => void;
   setNormalizeVolume: (enabled: boolean) => void;
+  setCrossfadeEnabled: (enabled: boolean) => void;
+  setCrossfadeSeconds: (seconds: number) => void;
   setHighQualityStreaming: (enabled: boolean) => void;
   setBypassWhitelist: (enabled: boolean) => void;
   setDpiBypass: (enabled: boolean) => void;
@@ -117,23 +121,25 @@ export interface SettingsState {
 const DEFAULT_EQ_GAINS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 const DEFAULTS = {
-  accentColor: '#ff5500',
-  bgPrimary: '#08080a',
+  accentColor: '#008736',
+  bgPrimary: '#0a0a0a',
   themePreset: 'soundcloud' as ThemePreset,
   backgroundImage: '',
   backgroundOpacity: 0.15,
   backgroundBlur: 0,
   glassBlur: 40,
   audioCacheLimitMB: 1024,
-  language: navigator.language?.split('-')[0] || 'en',
+  language: 'ru',
   eqEnabled: false,
   eqGains: DEFAULT_EQ_GAINS,
   eqPreset: 'flat',
   normalizeVolume: true,
-  highQualityStreaming: false,
+  crossfadeEnabled: false,
+  crossfadeSeconds: 12,
+  highQualityStreaming: true,
   bypassWhitelist: false,
   dpiBypass: true,
-  sidebarCollapsed: false,
+  sidebarCollapsed: true,
   floatingComments: true,
   startupPage: 'home' as StartupPage,
   pinnedPlaylists: [] as SidebarPinnedPlaylist[],
@@ -177,6 +183,9 @@ export const useSettingsStore = create<SettingsState>()(
           return { eqGains, eqPreset: 'custom' };
         }),
       setNormalizeVolume: (normalizeVolume) => set({ normalizeVolume }),
+      setCrossfadeEnabled: (crossfadeEnabled) => set({ crossfadeEnabled }),
+      setCrossfadeSeconds: (crossfadeSeconds) =>
+        set({ crossfadeSeconds: Math.round(Math.max(1, Math.min(12, crossfadeSeconds))) }),
       setHighQualityStreaming: (highQualityStreaming) => set({ highQualityStreaming }),
       setBypassWhitelist: (bypassWhitelist) => set({ bypassWhitelist }),
       setDpiBypass: (dpiBypass) => set({ dpiBypass }),
@@ -216,21 +225,27 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'sc-settings',
       storage: createJSONStorage(() => tauriStorage),
-      version: 15,
+      version: 17,
       migrate: (persistedState) => {
         const prev = (persistedState ?? {}) as Partial<SettingsState> & {
           soundwaveDiversity?: number;
         };
-        // v13 → v14: diversity-slider (0..1) → toggle ('similar' | 'diverse').
-        // > 0.5 трактуем как 'diverse', иначе 'similar'.
         const inferredMode: 'similar' | 'diverse' =
           typeof prev.soundwaveDiversity === 'number' && prev.soundwaveDiversity > 0.5
             ? 'diverse'
             : 'similar';
+        const crossfadeSeconds =
+          typeof prev.crossfadeSeconds === 'number'
+            ? Math.round(Math.max(1, Math.min(12, prev.crossfadeSeconds)))
+            : DEFAULTS.crossfadeSeconds;
         return {
           ...DEFAULTS,
           ...prev,
           soundwaveMode: prev.soundwaveMode ?? inferredMode,
+          normalizeVolume: true,
+          highQualityStreaming: true,
+          crossfadeEnabled: prev.crossfadeEnabled ?? DEFAULTS.crossfadeEnabled,
+          crossfadeSeconds,
         } as SettingsState;
       },
       partialize: (s) => ({
@@ -247,6 +262,8 @@ export const useSettingsStore = create<SettingsState>()(
         eqGains: s.eqGains,
         eqPreset: s.eqPreset,
         normalizeVolume: s.normalizeVolume,
+        crossfadeEnabled: s.crossfadeEnabled,
+        crossfadeSeconds: s.crossfadeSeconds,
         highQualityStreaming: s.highQualityStreaming,
         bypassWhitelist: s.bypassWhitelist,
         sidebarCollapsed: s.sidebarCollapsed,

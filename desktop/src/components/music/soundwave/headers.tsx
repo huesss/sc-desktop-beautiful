@@ -7,8 +7,7 @@ const IconChip = React.memo(function IconChip({ children }: { children: React.Re
     <div
       className="w-6 h-6 rounded-lg flex items-center justify-center"
       style={{
-        background: 'linear-gradient(135deg, var(--color-accent-glow), rgba(255,255,255,0.05))',
-        border: '1px solid var(--color-accent-glow)',
+        background: '#141414', border: '1px solid var(--color-accent-glow)',
       }}
     >
       {children}
@@ -22,7 +21,7 @@ interface SearchHeaderProps {
   onClear: () => void;
 }
 
-/** Search-results header with reset link. */
+
 export const SearchHeader = React.memo(function SearchHeader({
   query,
   count,
@@ -34,18 +33,18 @@ export const SearchHeader = React.memo(function SearchHeader({
       <IconChip>
         <Sparkles size={11} style={{ color: 'var(--color-accent)' }} />
       </IconChip>
-      <span className="text-[12px] font-semibold text-white/80">
+      <span className="text-[12px] font-semibold text-[#ffffff99]">
         {t('soundwave.searchResultsFor', { q: query })}
       </span>
       {count > 0 && (
-        <span className="text-[10.5px] tabular-nums text-white/35 font-medium">
+        <span className="text-[10.5px] tabular-nums text-[#ffffff99] font-medium">
           · {t('soundwave.searchResultsCount', { count })}
         </span>
       )}
       <button
         type="button"
         onClick={onClear}
-        className="ml-auto flex items-center gap-1 text-[10.5px] text-white/40 hover:text-white/80 transition-colors cursor-pointer"
+        className="ml-auto flex items-center gap-1 text-[10.5px] text-[#ffffff99] hover:text-[#ffffff99] transition-colors cursor-pointer"
       >
         <X size={10} />
         {t('soundwave.searchReset')}

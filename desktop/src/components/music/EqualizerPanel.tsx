@@ -11,7 +11,7 @@ import {
 import { AudioLines, Power, RotateCcw, X } from '../../lib/icons';
 import { useSettingsStore } from '../../stores/settings';
 
-/* ── Single Band Slider ─────────────────────────────────────── */
+
 
 const BandSlider = React.memo(function BandSlider({
   index,
@@ -57,24 +57,24 @@ const BandSlider = React.memo(function BandSlider({
     dragging.current = false;
   }, []);
 
-  // Normalized 0-1 position
+  
   const pct = (gain - EQ_MIN_GAIN) / (EQ_MAX_GAIN - EQ_MIN_GAIN);
   const isPositive = gain > 0;
   const isNegative = gain < 0;
 
   return (
     <div className="flex flex-col items-center gap-2 select-none">
-      {/* Gain value */}
+      {}
       <span
         className={`text-[10px] tabular-nums font-semibold h-4 ${
-          isPositive ? 'text-emerald-400' : isNegative ? 'text-blue-400' : 'text-white/30'
+          isPositive ? 'text-emerald-400' : isNegative ? 'text-blue-400' : 'text-[#ffffff99]'
         }`}
       >
         {gain > 0 ? '+' : ''}
         {gain.toFixed(1)}
       </span>
 
-      {/* Track */}
+      {}
       <div
         ref={trackRef}
         className="relative w-7 h-[140px] flex items-center justify-center cursor-pointer touch-none"
@@ -82,13 +82,13 @@ const BandSlider = React.memo(function BandSlider({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        {/* Rail */}
+        {}
         <div className="absolute w-[3px] h-full rounded-full bg-white/[0.06]" />
 
-        {/* Center line */}
+        {}
         <div className="absolute w-2 h-px bg-white/10 left-1/2 top-1/2 -translate-x-1/2" />
 
-        {/* Fill */}
+        {}
         <div
           className="absolute w-[3px] rounded-full left-1/2 -translate-x-1/2 transition-colors duration-150"
           style={{
@@ -102,7 +102,7 @@ const BandSlider = React.memo(function BandSlider({
           }}
         />
 
-        {/* Thumb */}
+        {}
         <div
           className="absolute left-1/2 -translate-x-1/2 w-4 h-4 rounded-full transition-shadow duration-150 will-change-transform"
           style={{
@@ -122,13 +122,13 @@ const BandSlider = React.memo(function BandSlider({
         />
       </div>
 
-      {/* Frequency label */}
-      <span className="text-[9px] text-white/30 font-medium">{label}</span>
+      {}
+      <span className="text-[9px] text-[#ffffff99] font-medium">{label}</span>
     </div>
   );
 });
 
-/* ── Preset Button ──────────────────────────────────────────── */
+
 
 const PresetBtn = React.memo(function PresetBtn({
   id,
@@ -147,8 +147,8 @@ const PresetBtn = React.memo(function PresetBtn({
       onClick={() => onClick(id)}
       className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 cursor-pointer border ${
         active
-          ? 'bg-white/[0.1] text-white/90 border-white/[0.12] shadow-sm'
-          : 'bg-white/[0.02] text-white/35 border-white/[0.04] hover:bg-white/[0.06] hover:text-white/60'
+          ? 'bg-white/[0.1] text-white border-white/[0.12] shadow-sm'
+          : 'bg-[#0a0a0a] text-[#ffffff99] border-white/10 hover:bg-white/5 hover:text-[#ffffff99]'
       }`}
     >
       {label}
@@ -156,7 +156,7 @@ const PresetBtn = React.memo(function PresetBtn({
   );
 });
 
-/* ── Main Panel ─────────────────────────────────────────────── */
+
 
 export const EqualizerPanel = React.memo(function EqualizerPanel({
   children,
@@ -201,59 +201,59 @@ export const EqualizerPanel = React.memo(function EqualizerPanel({
     <Dialog.Root>
       <Dialog.Trigger asChild>{children}</Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-fade-in" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 animate-fade-in" />
         <Dialog.Content className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] max-w-[95vw] animate-fade-in-up outline-none">
-          <div className="bg-[#1a1a1e]/95 backdrop-blur-[60px] border border-white/[0.08] rounded-3xl shadow-2xl shadow-black/40 overflow-hidden">
-            {/* Header */}
+          <div className="bg-[#141414]/95 border border-white/10 rounded-lg shadow-2xl shadow-black/40 overflow-hidden">
+            {}
             <div className="flex items-center justify-between px-6 pt-5 pb-3">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center">
-                  <AudioLines size={18} className="text-white/60" />
+                  <AudioLines size={18} className="text-[#ffffff99]" />
                 </div>
-                <h2 className="text-[17px] font-bold text-white/90 tracking-tight">
+                <h2 className="text-[17px] font-bold text-white tracking-tight">
                   {t('eq.title')}
                 </h2>
               </div>
               <div className="flex items-center gap-2">
-                {/* Power toggle */}
+                {}
                 <button
                   type="button"
                   onClick={() => setEqEnabled(!eqEnabled)}
                   className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border ${
                     eqEnabled
                       ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 shadow-[0_0_12px_rgba(52,211,153,0.15)]'
-                      : 'bg-white/[0.04] text-white/25 border-white/[0.06] hover:text-white/50'
+                      : 'bg-[#141414] text-[#ffffff99] border-white/10 hover:text-[#ffffff99]'
                   }`}
                 >
                   <Power size={15} />
                 </button>
-                {/* Reset */}
+                {}
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/25 hover:text-white/50 transition-all cursor-pointer"
+                  className="w-9 h-9 rounded-xl bg-[#141414] border border-white/10 flex items-center justify-center text-[#ffffff99] hover:text-[#ffffff99] transition-all cursor-pointer"
                 >
                   <RotateCcw size={14} />
                 </button>
-                {/* Close */}
-                <Dialog.Close className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/25 hover:text-white/50 transition-all cursor-pointer">
+                {}
+                <Dialog.Close className="w-9 h-9 rounded-xl bg-[#141414] border border-white/10 flex items-center justify-center text-[#ffffff99] hover:text-[#ffffff99] transition-all cursor-pointer">
                   <X size={15} />
                 </Dialog.Close>
               </div>
             </div>
 
-            {/* dB scale + Sliders */}
+            {}
             <div
               className={`px-6 pb-4 transition-opacity duration-300 ${eqEnabled ? '' : 'opacity-30 pointer-events-none'}`}
             >
               <div className="flex items-end gap-0">
-                {/* dB labels */}
+                {}
                 <div className="flex flex-col justify-between h-[140px] mr-2 -mt-6">
                   <span className="text-[9px] text-white/20 tabular-nums">+12</span>
                   <span className="text-[9px] text-white/20 tabular-nums">0</span>
                   <span className="text-[9px] text-white/20 tabular-nums">-12</span>
                 </div>
-                {/* Band sliders */}
+                {}
                 <div className="flex-1 flex justify-between">
                   {Array.from({ length: EQ_BAND_COUNT }, (_, i) => (
                     <BandSlider
@@ -268,11 +268,11 @@ export const EqualizerPanel = React.memo(function EqualizerPanel({
               </div>
             </div>
 
-            {/* Presets */}
+            {}
             <div
               className={`px-6 pb-5 transition-opacity duration-300 ${eqEnabled ? '' : 'opacity-30 pointer-events-none'}`}
             >
-              <p className="text-[11px] text-white/30 font-medium mb-2.5">{t('eq.preset')}</p>
+              <p className="text-[11px] text-[#ffffff99] font-medium mb-2.5">{t('eq.preset')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(EQ_PRESETS).map(([id, preset]) => (
                   <PresetBtn

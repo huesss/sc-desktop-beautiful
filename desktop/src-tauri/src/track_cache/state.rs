@@ -32,20 +32,19 @@ const MAX_PARALLEL_PRELOADS: usize = 20;
 const MAX_PARALLEL_LIKES: usize = 4;
 const CACHE_METADATA_EXT: &str = ".meta.json";
 
-/// Magic-byte validation for audio files
 fn is_valid_audio(prefix: &[u8], total_size: u64) -> bool {
     if total_size < MIN_AUDIO_SIZE {
         return false;
     }
-    // ID3 (MP3)
+
     if prefix.len() >= 3 && prefix[0] == 0x49 && prefix[1] == 0x44 && prefix[2] == 0x33 {
         return true;
     }
-    // MPEG Sync (MP3 / ADTS AAC)
+
     if prefix.len() >= 2 && prefix[0] == 0xff && (prefix[1] & 0xe0) == 0xe0 {
         return true;
     }
-    // ftyp (MP4/AAC)
+
     if prefix.len() >= 8
         && prefix[4] == 0x66
         && prefix[5] == 0x74
@@ -54,7 +53,7 @@ fn is_valid_audio(prefix: &[u8], total_size: u64) -> bool {
     {
         return true;
     }
-    // OggS
+
     if prefix.len() >= 4
         && prefix[0] == 0x4f
         && prefix[1] == 0x67
@@ -63,7 +62,7 @@ fn is_valid_audio(prefix: &[u8], total_size: u64) -> bool {
     {
         return true;
     }
-    // RIFF/WAV
+
     if prefix.len() >= 4
         && prefix[0] == 0x52
         && prefix[1] == 0x49
@@ -72,7 +71,7 @@ fn is_valid_audio(prefix: &[u8], total_size: u64) -> bool {
     {
         return true;
     }
-    // fLaC
+
     if prefix.len() >= 4
         && prefix[0] == 0x66
         && prefix[1] == 0x4c
@@ -88,9 +87,15 @@ fn urn_to_filename(urn: &str) -> String {
     format!("{}.audio", urn.replace(':', "_"))
 }
 
+fn urn_to_hq_filename(urn: &str) -> String {
+    format!("{}.hq.audio", urn.replace(':', "_"))
+}
+
 fn filename_to_urn(filename: &str) -> Option<String> {
-    let stripped = filename.strip_suffix(".audio")?;
-    Some(stripped.replace('_', ":"))
+    let base = filename
+        .strip_suffix(".hq.audio")
+        .or_else(|| filename.strip_suffix(".audio"))?;
+    Some(base.replace('_', ":"))
 }
 
 fn is_audio_cache_file(path: &Path) -> bool {
@@ -216,7 +221,6 @@ impl PlaybackQuality {
     }
 }
 
-/// Tracks active downloads so duplicate requests coalesce.
 struct ActiveDownload {
     notify: Arc<Notify>,
     result: Arc<Mutex<Option<Result<PathBuf, String>>>>,
@@ -266,13 +270,13 @@ impl TrackCacheEntry {
     }
 }
 
-enum DownloadError {
+pub(super) enum DownloadError {
     Fatal(String),
     Retryable(String),
 }
 
-struct DownloadResult {
-    path: PathBuf,
+pub(super) struct DownloadResult {
+    pub path: PathBuf,
 }
 
 #[derive(serde::Deserialize)]
@@ -321,9 +325,6 @@ fn host_of(url: &str) -> Option<String> {
     Url::parse(url).ok()?.host_str().map(str::to_string)
 }
 
-/// Convert a storage stream URL (`<base>/<file>.m4a`) into a redirect URL
-/// (`<base>/redirect/<file>.m4a`) that 307s to a backend-direct download
-/// (presigned S3 URL or public Drive link, depending on storage backend).
 fn make_redirect_url(storage_url: &str) -> Option<String> {
     let mut parsed = Url::parse(storage_url).ok()?;
     let path = parsed.path().trim_start_matches('/').to_string();
@@ -401,9 +402,9 @@ pub struct TrackCacheState {
     likes_limiter: Arc<Semaphore>,
     likes_running: Arc<std::sync::atomic::AtomicBool>,
     likes_cancel: Arc<std::sync::atomic::AtomicBool>,
-    /// Per-host storage circuit breaker: host -> epoch secs of last failure.
     storage_cooldowns: Arc<StdMutex<HashMap<String, u64>>>,
     anon: Arc<AnonClient>,
+    pub(super) upgrades: Arc<StdMutex<HashMap<String, tokio::task::AbortHandle>>>,
 }
 
 pub fn init(audio_dir: PathBuf, liked_dir: PathBuf) -> TrackCacheState {
@@ -460,6 +461,7 @@ pub fn init(audio_dir: PathBuf, liked_dir: PathBuf) -> TrackCacheState {
         likes_cancel: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         storage_cooldowns: Arc::new(StdMutex::new(HashMap::new())),
         anon,
+        upgrades: Arc::new(StdMutex::new(HashMap::new())),
     }
 }
 
@@ -476,12 +478,19 @@ fn quality_from_url(url: &str) -> PlaybackQuality {
         .unwrap_or(PlaybackQuality::Sq)
 }
 
-fn temp_file_path(target_dir: &Path, urn: &str) -> PathBuf {
+pub(super) fn cache_filename(urn: &str, quality: PlaybackQuality) -> String {
+    match quality {
+        PlaybackQuality::Hq => urn_to_hq_filename(urn),
+        PlaybackQuality::Sq => urn_to_filename(urn),
+    }
+}
+
+fn temp_file_path(target_dir: &Path, urn: &str, quality: PlaybackQuality) -> PathBuf {
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    target_dir.join(format!("{}.{}.part", urn_to_filename(urn), nonce))
+    target_dir.join(format!("{}.{}.part", cache_filename(urn, quality), nonce))
 }
 
 async fn cleanup_temp_file(path: &Path) {
@@ -519,8 +528,8 @@ async fn write_response_to_cache(
     source: DownloadSource,
     app_handle: Option<&tauri::AppHandle>,
 ) -> Result<DownloadResult, DownloadError> {
-    let final_path = target_dir.join(urn_to_filename(urn));
-    let temp_path = temp_file_path(target_dir, urn);
+    let final_path = target_dir.join(cache_filename(urn, quality));
+    let temp_path = temp_file_path(target_dir, urn, quality);
     let file = File::create(&temp_path)
         .await
         .map_err(|err| DownloadError::Fatal(format!("Cache create failed: {err}")))?;
@@ -621,8 +630,7 @@ async fn write_response_to_cache(
     }
 }
 
-/// Write a fully buffered audio payload (e.g. anon HLS download) to cache.
-async fn write_bytes_to_cache(
+pub(super) async fn write_bytes_to_cache(
     target_dir: &Path,
     urn: &str,
     data: &[u8],
@@ -635,8 +643,8 @@ async fn write_bytes_to_cache(
         return Err(DownloadError::Fatal("Invalid audio data".into()));
     }
 
-    let final_path = target_dir.join(urn_to_filename(urn));
-    let temp_path = temp_file_path(target_dir, urn);
+    let final_path = target_dir.join(cache_filename(urn, quality));
+    let temp_path = temp_file_path(target_dir, urn, quality);
 
     let file = File::create(&temp_path)
         .await
@@ -696,7 +704,6 @@ async fn write_bytes_to_cache(
     }
 }
 
-/// Download a track from an API URL to cache.
 async fn download_api(
     client: &Client,
     target_dir: &Path,
@@ -748,8 +755,6 @@ impl TrackCacheState {
         self.preload_limiter.clone().try_acquire_owned().ok()
     }
 
-    /// Wire up the Tauri AppHandle so that anon/cache writes can persist
-    /// diagnostics to `desktop.log`.
     pub fn set_app_handle(&mut self, handle: tauri::AppHandle) {
         self.anon.set_app_handle(handle.clone());
         self.app_handle = Some(handle);
@@ -765,26 +770,31 @@ impl TrackCacheState {
         self.audio_dir.join(urn_to_filename(urn))
     }
 
+    fn hq_file_path(&self, urn: &str) -> PathBuf {
+        self.audio_dir.join(urn_to_hq_filename(urn))
+    }
+
     fn liked_file_path(&self, urn: &str) -> PathBuf {
         self.liked_dir.join(urn_to_filename(urn))
     }
 
-    /// Resolve the existing cached path (liked dir takes priority).
-    /// Returns `None` if the track is not cached in either directory.
+    fn liked_hq_file_path(&self, urn: &str) -> PathBuf {
+        self.liked_dir.join(urn_to_hq_filename(urn))
+    }
+
     fn resolve_path(&self, urn: &str) -> Option<PathBuf> {
-        let liked = self.liked_file_path(urn);
-        if std::fs::metadata(&liked)
-            .map(|m| m.len() >= MIN_AUDIO_SIZE)
-            .unwrap_or(false)
-        {
-            return Some(liked);
-        }
-        let audio = self.file_path(urn);
-        if std::fs::metadata(&audio)
-            .map(|m| m.len() >= MIN_AUDIO_SIZE)
-            .unwrap_or(false)
-        {
-            return Some(audio);
+        for path in [
+            self.liked_hq_file_path(urn),
+            self.liked_file_path(urn),
+            self.hq_file_path(urn),
+            self.file_path(urn),
+        ] {
+            if std::fs::metadata(&path)
+                .map(|m| m.len() >= MIN_AUDIO_SIZE)
+                .unwrap_or(false)
+            {
+                return Some(path);
+            }
         }
         None
     }
@@ -806,8 +816,6 @@ impl TrackCacheState {
         ))
     }
 
-    /// Download track, save to cache. Coalesces concurrent requests for the same URN.
-    /// Tries each URL in order with retries, falling back to the next on failure.
     fn storage_host_available(&self, host: &str) -> bool {
         let Ok(map) = self.storage_cooldowns.lock() else {
             return true;
@@ -852,7 +860,6 @@ impl TrackCacheState {
             &self.audio_dir
         };
 
-        // Coalesce concurrent requests for the same URN
         let mut active = self.active.lock().await;
         if let Some(existing) = active.get(urn) {
             println!("[TrackCache] coalescing request for {urn}");
@@ -901,15 +908,26 @@ impl TrackCacheState {
         notify.notify_waiters();
         self.active.lock().await.remove(urn);
 
-        download_result
-            .map(|path| TrackCacheEntry::from_path_and_meta(&path, read_cache_metadata(&path)))
+        let entry = download_result
+            .map(|path| TrackCacheEntry::from_path_and_meta(&path, read_cache_metadata(&path)));
+
+        if hq {
+            if let Ok(e) = &entry {
+                if e.quality.as_deref() != Some(PlaybackQuality::Hq.label()) {
+                    self.schedule_upgrade(super::upgrade::UpgradeRequest {
+                        urn: urn.to_string(),
+                        download_urls: download_urls.to_vec(),
+                        session_id: session_id.map(str::to_string),
+                        liked,
+                    });
+                }
+            }
+        }
+
+        entry
     }
 
-    /// Try each storage URL once (healthy hosts first), then API URLs with retries.
-    async fn download_with_fallback(
-        &self,
-        params: FallbackParams<'_>,
-    ) -> Result<PathBuf, String> {
+    async fn download_with_fallback(&self, params: FallbackParams<'_>) -> Result<PathBuf, String> {
         let FallbackParams {
             target_dir,
             urn,
@@ -922,7 +940,6 @@ impl TrackCacheState {
         let start = std::time::Instant::now();
         let mut last_err = String::from("no stream URLs provided");
 
-        // Sort storage URLs: healthy hosts first.
         let mut sorted: Vec<&String> = storage_urls.iter().collect();
         sorted.sort_by_key(|url| {
             let healthy = host_of(url)
@@ -935,10 +952,6 @@ impl TrackCacheState {
             }
         });
 
-        // 1. Try storage `/redirect/...` URLs — fast 307 to presigned S3 / public Drive.
-        //    Saves storage server bandwidth when the upstream is reachable.
-        //    No cooldown is recorded here: a failure may be backend-side (banned/blocked),
-        //    but the storage stream fallback (step 3) might still work.
         for storage_url in &sorted {
             let Some(host) = host_of(storage_url) else {
                 continue;
@@ -990,9 +1003,6 @@ impl TrackCacheState {
             }
         }
 
-        // 2. Try anon: download directly from SC public API v2.
-        //    Saves a hop through our streaming infra when the user can reach
-        //    SoundCloud directly.
         match self.anon.get_stream(urn).await {
             Ok(Some(result)) => {
                 let line = format!("[TrackCache] {urn} → anon (SC api v2)");
@@ -1043,8 +1053,6 @@ impl TrackCacheState {
             }
         }
 
-        // Storage stream — proxies bytes through our storage server when
-        // the upstream isn't reachable directly.
         for storage_url in &sorted {
             let Some(host) = host_of(storage_url) else {
                 continue;
@@ -1101,19 +1109,9 @@ impl TrackCacheState {
             }
         }
 
-        // Race /download (direct from SC) vs /stream (proxy via streaming API).
-        // First success wins, the loser is dropped → reqwest cancels its connection.
         if !download_urls.is_empty() || !urls.is_empty() {
             match self
-                .race_direct_and_api(
-                    target_dir,
-                    urn,
-                    download_urls,
-                    urls,
-                    session_id,
-                    hq,
-                    start,
-                )
+                .race_direct_and_api(target_dir, urn, download_urls, urls, session_id, hq, start)
                 .await
             {
                 Ok(path) => return Ok(path),
@@ -1127,8 +1125,6 @@ impl TrackCacheState {
         Err(last_err)
     }
 
-    /// Resolve a `/download/:urn` endpoint into a cached file.
-    /// Returns `Ok(path)` on success, `Err(msg)` if every candidate failed.
     async fn try_direct(
         &self,
         target_dir: &Path,
@@ -1163,8 +1159,7 @@ impl TrackCacheState {
                     .map(|m| m.len() / 1024)
                     .unwrap_or(0);
                 let ms = start.elapsed().as_millis();
-                let line =
-                    format!("[TrackCache] downloaded {urn} via direct — {kb} KB in {ms}ms");
+                let line = format!("[TrackCache] downloaded {urn} via direct — {kb} KB in {ms}ms");
                 println!("{line}");
                 self.diag("INFO", line);
                 Ok(res.path)
@@ -1178,8 +1173,6 @@ impl TrackCacheState {
         }
     }
 
-    /// Race all `/stream` API URLs in parallel; first success wins, the
-    /// rest are dropped → reqwest cancels their connections.
     async fn try_api(
         &self,
         target_dir: &Path,
@@ -1193,7 +1186,9 @@ impl TrackCacheState {
         }
 
         let mut futures: Vec<
-            std::pin::Pin<Box<dyn std::future::Future<Output = (usize, Result<PathBuf, String>)> + Send>>,
+            std::pin::Pin<
+                Box<dyn std::future::Future<Output = (usize, Result<PathBuf, String>)> + Send>,
+            >,
         > = urls
             .iter()
             .enumerate()
@@ -1206,17 +1201,15 @@ impl TrackCacheState {
                 println!("[TrackCache] trying URL #{} for {urn} - {url}", i + 1);
                 Box::pin(async move {
                     let res = state
-                        .download_api_with_retries(
-                            &target_dir,
-                            &urn,
-                            &url,
-                            session_id.as_deref(),
-                        )
+                        .download_api_with_retries(&target_dir, &urn, &url, session_id.as_deref())
                         .await;
                     (i, res)
                 })
                     as std::pin::Pin<
-                        Box<dyn std::future::Future<Output = (usize, Result<PathBuf, String>)> + Send>,
+                        Box<
+                            dyn std::future::Future<Output = (usize, Result<PathBuf, String>)>
+                                + Send,
+                        >,
                     >
             })
             .collect();
@@ -1244,8 +1237,6 @@ impl TrackCacheState {
         Err(last_err)
     }
 
-    /// Run direct (`/download`) and api (`/stream`) in parallel; first success
-    /// returns its path, the loser is cancelled by being dropped.
     async fn race_direct_and_api(
         &self,
         target_dir: &Path,
@@ -1298,7 +1289,6 @@ impl TrackCacheState {
         Err(parts.join("; "))
     }
 
-    /// Download from a single URL with retries for retryable errors.
     async fn download_api_with_retries(
         &self,
         target_dir: &Path,
@@ -1355,10 +1345,6 @@ impl TrackCacheState {
             .unwrap_or(false)
     }
 
-    /// If the track lives only in the regular audio cache, move it to the
-    /// protected `liked_dir`. Tries an atomic rename first and falls back to
-    /// copy+remove when the dirs are on different filesystems.
-    /// Returns `true` when the track ends up in `liked_dir`.
     async fn promote_to_liked(&self, urn: &str) -> bool {
         if self.liked_has_file(urn) {
             return true;
@@ -1400,10 +1386,6 @@ impl TrackCacheState {
             .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
-    /// Bulk cache liked tracks to the protected `liked_dir`, respecting a
-    /// per-instance concurrency limit. Emits progress events and short-circuits
-    /// when `cancel_cache_likes` is called. The op is idempotent — already
-    /// cached URNs are skipped without emitting a slot.
     pub async fn cache_likes(&self, entries: Vec<LikeCacheEntry>) -> Result<(), String> {
         if self
             .likes_running
@@ -1590,7 +1572,12 @@ impl TrackCacheState {
 
     pub fn remove_cached(&self, urn: &str) -> bool {
         let mut removed = false;
-        for path in [self.liked_file_path(urn), self.file_path(urn)] {
+        for path in [
+            self.liked_hq_file_path(urn),
+            self.liked_file_path(urn),
+            self.hq_file_path(urn),
+            self.file_path(urn),
+        ] {
             if std::fs::metadata(&path).is_ok() {
                 if std::fs::remove_file(&path).is_ok() {
                     removed = true;

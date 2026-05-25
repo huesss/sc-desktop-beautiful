@@ -75,10 +75,6 @@ fn pick_encrypted<'a>(transcodings: &'a [Transcoding], hq_first: bool) -> Option
         .or_else(|| transcodings.iter().find(|t| is_encrypted(t)))
 }
 
-/// Pick the `ctr` transcoding, resolve it, return manifest + token.
-/// `headers` carries the caller's identity (empty = anon, OAuth = cookies);
-/// the same headers are reused for both the resolve and the manifest fetch.
-/// `hq_first=true` prefers the HQ encrypted variant when both qualities exist.
 pub(crate) async fn resolve(
     client: &Client,
     proxy_url: &str,

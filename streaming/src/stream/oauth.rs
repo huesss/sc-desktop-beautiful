@@ -20,15 +20,11 @@ pub struct ScStreams {
     pub hls_mp3_128_url: Option<String>,
 }
 
-/// Stream result: full audio data + content_type + quality tag
 pub struct OAuthStreamResult {
     pub data: Bytes,
     pub content_type: &'static str,
 }
 
-/// Try OAuth API stream: /tracks/{urn}/streams → pick best format → download.
-/// `hq_only=true`  → only hls_aac_160 (HQ AAC 160k HLS)
-/// `hq_only=false` → all formats: hls_aac_160 → http_mp3_128 → hls_mp3_128
 pub async fn try_oauth_stream(
     client: &Client,
     pg: &PgPool,
@@ -52,8 +48,6 @@ pub async fn try_oauth_stream(
     )
     .await?;
 
-    // hq_only: only HLS AAC 160; otherwise hls_aac_160 first (API v1 path — stable),
-    // then progressive mp3, then HLS mp3 fallback
     let candidates: Vec<(&str, &str, &str)> = if hq_only {
         vec![(
             streams.hls_aac_160_url.as_deref(),
@@ -157,7 +151,6 @@ async fn get_streams(
         target.push_str(&format!("?secret_token={st}"));
     }
 
-    // 1) direct with original token (only when proxy_fallback enabled & proxy is set)
     if proxy_fallback && !proxy_url.is_empty() {
         match fetch_streams_direct_once(client, &target, access_token).await {
             FetchOutcome::Ok(s) => return Some(s),
@@ -168,7 +161,6 @@ async fn get_streams(
             FetchOutcome::Retryable(reason) => {
                 warn!("[oauth] direct streams failed ({reason}) for {track_urn}, trying random sessions");
 
-                // 2) try N random valid sessions, direct (no proxy)
                 if fallback_session_count > 0 {
                     match pg
                         .get_random_valid_sessions(fallback_session_count as i64, access_token)
@@ -211,7 +203,6 @@ async fn get_streams(
         }
     }
 
-    // 3) original logic: proxy with original token (or direct if no proxy configured)
     let mut headers = HashMap::new();
     headers.insert("Authorization".into(), format!("OAuth {access_token}"));
     headers.insert("Accept".into(), "application/json; charset=utf-8".into());
@@ -234,7 +225,7 @@ async fn try_format(
     proto: &str,
     mime: &str,
 ) -> Result<OAuthStreamResult, Box<dyn std::error::Error + Send + Sync>> {
-    // pf=true: direct → proxy&relay
+
     if proxy_fallback {
         match try_format_inner(client, proxy_url, access_token, url, proto, mime, true).await {
             Ok(result) => return Ok(result),
@@ -260,9 +251,7 @@ async fn try_format_inner(
     headers.insert("Authorization".into(), format!("OAuth {access_token}"));
 
     let (data, content_type) = if proto == "hls" {
-        // SC regenerates freshly-signed segment URLs every time this redirect
-        // URL is fetched with the OAuth header, so the refresher is just the
-        // same request again.
+
         let refresher: M3u8Refresher = {
             let client = client.clone();
             let proxy_url = proxy_url.to_string();

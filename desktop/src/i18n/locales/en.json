@@ -7,8 +7,19 @@
     "offline": "Offline",
     "following": "Following",
     "settings": "Settings",
+    "likedTracks": "Liked Songs",
+    "mySc": "My SC",
     "collapse": "Collapse",
-    "expand": "Expand"
+    "expand": "Expand",
+    "expandSidebar": "Open sidebar",
+    "collapseSidebar": "Collapse sidebar"
+  },
+  "mySc": {
+    "title": "My SoundCloud",
+    "titlePrefix": "My",
+    "subtitle": "CS2 · Faceit",
+    "paused": "Paused",
+    "startPlaying": "Play a track"
   },
   "sidebar": {
     "quickAccess": "Quick Access",
@@ -85,13 +96,16 @@
   },
   "search": {
     "placeholder": "Search tracks, playlists, users...",
+    "topPlaceholder": "What do you want to play?",
     "tracks": "Tracks",
     "playlists": "Playlists",
     "users": "Users",
     "noResults": "No results found",
     "hint": "Search for artists, bands, tracks, podcasts",
     "history": "Recent searches",
-    "clearHistory": "Clear all"
+    "recent": "Recent searches",
+    "clearHistory": "Clear all",
+    "showAll": "Show all results"
   },
   "track": {
     "comments": "Comments",
@@ -140,12 +154,19 @@
     "openTrackPage": "Open track page"
   },
   "playlist": {
+    "colTitle": "Title",
+    "colArtist": "Artist",
+    "colAlbum": "Album",
+    "colDateAdded": "Date added",
+    "playTrack": "Play {{title}}",
     "playAll": "Play All",
     "shuffle": "Shuffle",
     "tracks_one": "{{count}} track",
     "tracks_other": "{{count}} tracks",
     "by": "by",
     "noTracks": "No tracks in this playlist",
+    "tracksLoadFailed": "Could not load playlist tracks",
+    "retryTracks": "Retry",
     "removeTrack": "Remove from playlist",
     "trackRemoved": "Track removed",
     "reordered": "Track order saved",
@@ -217,7 +238,21 @@
     "discover": "Discover",
     "startListening": "Start Listening",
     "startLikingTitle": "Like tracks — more music will appear here",
-    "startLikingDesc": "The more likes, the better recommendations and richer home page"
+    "startLikingDesc": "The more likes, the better recommendations and richer home page",
+    "quickAccess": "Quick access",
+    "quickLikes": "Liked Songs",
+    "quickShuffle": "Shuffle from feed",
+    "feedShuffle": "Random from feed",
+    "likedPlaylists": "Liked playlists",
+    "playlistShelfFailed": "Could not load this shelf",
+    "playlistShelf": {
+      "cs2faceit": "CS2 Faceit",
+      "cs2": "CS2 Playlist",
+      "phonk": "Phonk & drift",
+      "russian": "Russian rap",
+      "bass": "Bass boosted",
+      "chill": "Chill mix"
+    }
   },
   "soundwave": {
     "tagline": "Your personal radio — picked just for you",
@@ -247,8 +282,6 @@
       "waveTitle": "Wave",
       "waveDesc": "Infinite mix from your taste graph — picks, neighbours, fresh drops, anti-skips.",
       "cluster": {
-        "wave": "Wave",
-        "waveDesc": "Infinite mix — recent likes, artist graph and AI-recs from tracks. Gets sharper the more you listen.",
         "for_you": "For you",
         "for_youDesc": "Best matches for your taste.",
         "top_artists": "Your favourites",
@@ -270,8 +303,6 @@
       "empty": "Nothing yet",
       "emptyDesc": "No similar tracks found — try again later.",
       "cluster": {
-        "wave": "Wave from track",
-        "waveDesc": "Infinite lane around this track — close sound, themes, and artist graph.",
         "same_artist": "This artist",
         "same_artistDesc": "Other tracks in the same key.",
         "same_vibe": "Same vibe",
@@ -365,6 +396,9 @@
     "discordRpcButtonDesc": "Display the button that opens the track in SoundCloud",
     "normalizeVolume": "Volume normalization",
     "normalizeVolumeDesc": "Balances quiet and loud tracks to a more even level",
+    "crossfade": "Crossfade songs",
+    "crossfadeDesc": "Smooth transitions between tracks in the queue",
+    "crossfadeSec": "{{count}} sec",
     "highQualityStreaming": "High quality streaming",
     "highQualityStreamingDesc": "Prefer the highest available quality during playback",
     "bypassWhitelist": "Bypass whitelists",
@@ -513,8 +547,6 @@
       "empty": "The wave is empty",
       "emptyDesc": "When more of this artist's catalogue gets analysed, the grid will start to hum.",
       "cluster": {
-        "wave": "Wave from artist",
-        "waveDesc": "Infinite lane — the artist's tracks, their nearest graph and thematic neighbours.",
         "essence": "Essence",
         "essenceDesc": "What gets played the most from this artist.",
         "vibe": "Same vibe",

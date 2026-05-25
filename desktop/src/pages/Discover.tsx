@@ -75,23 +75,13 @@ export const Discover = memo(function Discover() {
 
           <DiscoverSpotlight aura={aura} />
 
-          <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-center gap-4 flex-wrap">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
               <TabDock<DiscoverTabId> tabs={tabs} active={tab} onChange={setTab} aura={aura} />
               <SearchInput value={query} onChange={setQuery} />
             </div>
 
-            <div
-              className="rounded-[2rem] p-3 md:p-6"
-              style={{
-                background:
-                  'linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.015) 100%)',
-                backdropFilter: 'blur(28px) saturate(160%)',
-                WebkitBackdropFilter: 'blur(28px) saturate(160%)',
-                boxShadow:
-                  '0 30px 80px rgba(0,0,0,0.30), inset 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.05)',
-              }}
-            >
+            <div className="rounded-lg border border-white/10 bg-[#0a0a0a] p-3 md:px-4 py-3">
               {tab === 'albums' ? (
                 <AlbumsCatalog aura={aura} query={debouncedQuery} />
               ) : (
@@ -116,26 +106,20 @@ const SearchInput = memo(function SearchInput({
   return (
     <div className="relative w-full max-w-[320px]">
       <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-        <Search size={15} className="text-white/30" />
+        <Search size={15} className="text-[#ffffff99]" />
       </div>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={t('discover.searchPlaceholder')}
-        className="w-full text-[13px] text-white/85 placeholder:text-white/25 py-2.5 pl-9 pr-8 rounded-2xl outline-none transition-all duration-300"
-        style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '0.5px solid rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        }}
+        className="w-full bg-[#141414] border border-white/10 rounded-md text-[13px] text-white placeholder:text-[#ffffff99] py-2 pl-9 pr-8 outline-none focus:border-white/30 transition-colors"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange('')}
-          className="absolute inset-y-0 right-2 flex items-center text-white/30 hover:text-white/70 cursor-pointer transition-colors"
+          className="absolute inset-y-0 right-2 flex items-center text-[#ffffff99] hover:text-[#ffffff99] cursor-pointer transition-colors"
         >
           <X size={14} />
         </button>

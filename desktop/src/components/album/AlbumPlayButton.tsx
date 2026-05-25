@@ -2,15 +2,18 @@ import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Aura, auraRgb, auraRgba, isLight } from '../../lib/aura';
 import { pauseBlack14, pauseWhite14, playBlack14, playWhite14 } from '../../lib/icons';
+import { contextsMatch, type PlaybackContext } from '../../lib/playback-context';
 import { useIsPlayingFrom } from '../../lib/useTrackPlay';
 import { type Track, usePlayerStore } from '../../stores/player';
 
 interface AlbumPlayButtonProps {
   tracks: Track[];
+  albumId: string;
   aura: Aura;
 }
 
-function AlbumPlayButtonImpl({ tracks, aura }: AlbumPlayButtonProps) {
+function AlbumPlayButtonImpl({ tracks, albumId, aura }: AlbumPlayButtonProps) {
+  const albumContext: PlaybackContext = { kind: 'album', id: albumId };
   const { t } = useTranslation();
 
   const { playable, playableUrns } = useMemo(() => {
@@ -25,7 +28,7 @@ function AlbumPlayButtonImpl({ tracks, aura }: AlbumPlayButtonProps) {
     return { playable: list, playableUrns: urns };
   }, [tracks]);
 
-  const isPlayingFromAlbum = useIsPlayingFrom(playableUrns);
+  const isPlayingFromAlbum = useIsPlayingFrom(playableUrns, albumContext);
 
   const lightAura = isLight(aura);
   const icon = isPlayingFromAlbum
@@ -46,12 +49,13 @@ function AlbumPlayButtonImpl({ tracks, aura }: AlbumPlayButtonProps) {
       pause();
       return;
     }
-    if (currentUrn && playableUrns.has(currentUrn)) {
+    const ctx = usePlayerStore.getState().playbackContext;
+    if (currentUrn && playableUrns.has(currentUrn) && ctx && contextsMatch(ctx, albumContext)) {
       resume();
       return;
     }
-    play(playable[0], playable);
-  }, [empty, isPlayingFromAlbum, playable, playableUrns]);
+    play(playable[0], playable, albumContext);
+  }, [albumContext, empty, isPlayingFromAlbum, playable, playableUrns]);
 
   return (
     <button

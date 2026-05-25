@@ -25,8 +25,6 @@ fn cache_key(url: &str) -> String {
     hex::encode(Sha256::digest(url.as_bytes()))
 }
 
-/// Sniff the content type from the leading bytes. Single source of truth so we
-/// don't need a sidecar .meta file on disk.
 fn sniff_content_type(data: &[u8]) -> &'static str {
     if data.len() >= 3 && data[..3] == [0xFF, 0xD8, 0xFF] {
         "image/jpeg"
@@ -202,10 +200,6 @@ pub async fn proxy_request(encoded: &str) -> ProxyResult {
     }
 }
 
-/// Long browser cache for successful image responses. Image URLs are
-/// content-addressable (sndcdn artwork-XXX), so effectively immutable. Without
-/// this the WebView re-hits the proxy on every render and the disk cache only
-/// saves a network roundtrip — not the disk read.
 pub fn cache_control_for(status: u16) -> &'static str {
     if status == 200 {
         "public, max-age=31536000, immutable"

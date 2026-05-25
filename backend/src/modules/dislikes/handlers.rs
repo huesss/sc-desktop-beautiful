@@ -1,6 +1,6 @@
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -15,7 +15,7 @@ pub fn router() -> Router<AppState> {
         .route("/dislikes/{sc_track_id}", post(add).delete(remove))
         .route("/dislikes/status/{sc_track_id}", get(status))
         .route("/dislikes/ids", get(ids))
-        .route("/dislikes", get(list))
+        .route("/dislikes", get(list).delete(clear_all))
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -68,6 +68,10 @@ async fn ids(State(st): State<AppState>, ctx: SessionCtx) -> AppResult<Json<Valu
         .list_ids_by_user_id(&ctx.sc_user_id, 1000)
         .await?;
     Ok(Json(json!({ "ids": ids })))
+}
+
+async fn clear_all(State(st): State<AppState>, ctx: SessionCtx) -> AppResult<Json<StatusResult>> {
+    Ok(Json(st.dislikes.clear_all(&ctx.sc_user_id).await?))
 }
 
 async fn list(

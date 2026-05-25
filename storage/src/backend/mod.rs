@@ -36,8 +36,6 @@ pub enum Backend {
 }
 
 impl Backend {
-    /// Commit an already-transcoded tmp file into storage under `key`.
-    /// For local backend, also honors "keep existing if longer" semantics.
     pub async fn commit_transcode(
         &self,
         key: &str,

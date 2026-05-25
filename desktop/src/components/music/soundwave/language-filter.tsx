@@ -37,7 +37,7 @@ export const LanguageFilter = React.memo(function LanguageFilter({ selected, onC
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1.5 px-3 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.1] hover:border-white/[0.14] transition-colors duration-200 text-[11px] font-medium text-white/70 hover:text-white/95 cursor-pointer"
+          className="flex items-center gap-1.5 px-3 h-8 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/[0.1] hover:border-white/[0.14] transition-colors duration-200 text-[11px] font-medium text-[#ffffff99] hover:text-white cursor-pointer"
           title={t('soundwave.languages')}
         >
           <Globe size={12} />
@@ -50,24 +50,22 @@ export const LanguageFilter = React.memo(function LanguageFilter({ selected, onC
         <Popover.Content
           sideOffset={8}
           align="end"
-          className="z-50 w-[240px] p-2 rounded-2xl outline-none"
+          className="z-50 w-[240px] p-2 rounded-lg outline-none"
           style={{
             background: 'rgba(18,18,22,0.88)',
-            backdropFilter: 'blur(30px) saturate(1.8)',
-            WebkitBackdropFilter: 'blur(30px) saturate(1.8)',
             border: '1px solid rgba(255,255,255,0.08)',
             boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
           }}
         >
           <div className="flex items-center justify-between px-2 py-1.5">
-            <span className="text-[11px] font-semibold text-white/60 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-[#ffffff99] uppercase tracking-wider">
               {t('soundwave.languages')}
             </span>
             {count > 0 && (
               <button
                 type="button"
                 onClick={() => onChange([])}
-                className="text-[10px] text-white/40 hover:text-white/80 transition-colors cursor-pointer flex items-center gap-0.5"
+                className="text-[10px] text-[#ffffff99] hover:text-[#ffffff99] transition-colors cursor-pointer flex items-center gap-0.5"
               >
                 <X size={10} />
                 {t('soundwave.clear')}
@@ -85,12 +83,12 @@ export const LanguageFilter = React.memo(function LanguageFilter({ selected, onC
                   className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl text-[12px] transition-colors duration-150 cursor-pointer ${
                     active
                       ? 'text-white'
-                      : 'text-white/65 hover:bg-white/[0.05] hover:text-white/90'
+                      : 'text-[#ffffff99] hover:bg-white/[0.05] hover:text-white'
                   }`}
                   style={active ? { background: 'var(--color-accent-glow)' } : undefined}
                 >
                   <span className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-semibold tabular-nums text-white/40">
+                    <span className="text-[10px] uppercase font-semibold tabular-nums text-[#ffffff99]">
                       {l.code}
                     </span>
                     {l.name}

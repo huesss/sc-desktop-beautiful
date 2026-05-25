@@ -1,30 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
-import { useAuthStore } from '../stores/auth';
-import { useSettingsStore } from '../stores/settings';
 import { api } from './api';
-import { getIsPremium, setIsPremium } from './premium-cache';
+import { LOCAL_PREMIUM_UNLOCK } from './constants';
+import { useAuthStore } from '../stores/auth';
+import { setIsPremium } from './premium-cache';
 
 export { getIsPremium } from './premium-cache';
 
-interface SubscriptionResponse {
-  premium: boolean;
-}
-
 const QUERY_KEY = ['me', 'subscription'] as const;
 
-async function fetchSubscription(): Promise<SubscriptionResponse> {
-  try {
-    const res = await api<SubscriptionResponse>('/me/subscription');
-    setIsPremium(res.premium);
-    // Auto-disable bypass if no longer premium
-    if (!res.premium && useSettingsStore.getState().bypassWhitelist) {
-      useSettingsStore.getState().setBypassWhitelist(false);
-    }
-    return res;
-  } catch {
-    // Network failure: keep cached value, don't reset to false
-    return { premium: getIsPremium() };
+if (LOCAL_PREMIUM_UNLOCK) {
+  setIsPremium(true);
+}
+
+async function fetchSubscription(): Promise<{ premium: boolean }> {
+  if (LOCAL_PREMIUM_UNLOCK) {
+    setIsPremium(true);
+    return { premium: true };
   }
+  const data = await api<{ premium: boolean }>('/me/subscription');
+  setIsPremium(data.premium);
+  return data;
 }
 
 export function useSubscription(enabled: boolean) {
@@ -32,20 +27,29 @@ export function useSubscription(enabled: boolean) {
     queryKey: QUERY_KEY,
     queryFn: fetchSubscription,
     enabled,
-    staleTime: 30_000,
-    refetchInterval: 30_000,
+    staleTime: LOCAL_PREMIUM_UNLOCK ? Infinity : 30_000,
+    refetchInterval: LOCAL_PREMIUM_UNLOCK ? false : 30_000,
     select: (d) => d.premium,
+    initialData: { premium: true },
+    placeholderData: { premium: true },
   });
 }
 
-// Eagerly fetch subscription on auth so getIsPremium() is ready before first track play
-useAuthStore.subscribe((state, prev) => {
-  if (state.isAuthenticated && !prev.isAuthenticated) {
-    fetchSubscription().catch(() => {});
-  }
-});
+if (!LOCAL_PREMIUM_UNLOCK) {
+  useAuthStore.subscribe((state, prev) => {
+    if (state.isAuthenticated && !prev.isAuthenticated) {
+      fetchSubscription().catch(() => {
+        setIsPremium(false);
+      });
+    }
+    if (!state.isAuthenticated && prev.isAuthenticated) {
+      setIsPremium(false);
+    }
+  });
 
-// Fetch on startup if already authenticated (rehydrated session)
-if (useAuthStore.getState().isAuthenticated) {
-  fetchSubscription().catch(() => {});
+  if (useAuthStore.getState().isAuthenticated) {
+    fetchSubscription().catch(() => {
+      setIsPremium(false);
+    });
+  }
 }

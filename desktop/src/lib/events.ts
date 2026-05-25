@@ -9,11 +9,11 @@ export type SoundWaveEvent =
   | 'skip'
   | 'dislike';
 
-/**
- * Fire-and-forget event recorder for SoundWave taste model.
- * `positionPct` (0..1) only meaningful for `skip` and `full_play` — backend uses
- * it to split skips into early/mid/late buckets with different negative weight.
- */
+
+
+
+
+
 export function recordEvent(
   eventType: SoundWaveEvent,
   scTrackId: string,

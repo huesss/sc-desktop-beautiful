@@ -14,7 +14,7 @@ function formatMMSS(sec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-/** Elapsed / total time readout. DOM-ref updates — zero React re-renders. */
+
 const CurrentTimeDisplay = React.memo(function CurrentTimeDisplay() {
   const tRef = useRef<HTMLSpanElement>(null);
   const dRef = useRef<HTMLSpanElement>(null);
@@ -29,11 +29,11 @@ const CurrentTimeDisplay = React.memo(function CurrentTimeDisplay() {
   }, []);
 
   return (
-    <span className="text-[11px] tabular-nums text-white/50 shrink-0 font-medium">
+    <span className="text-[11px] tabular-nums text-[#ffffff99] shrink-0 font-medium">
       <span ref={tRef} style={{ color: 'var(--color-accent)' }}>
         0:00
       </span>
-      <span className="text-white/25 mx-1">/</span>
+      <span className="text-[#ffffff99] mx-1">/</span>
       <span ref={dRef}>0:00</span>
     </span>
   );
@@ -45,7 +45,7 @@ interface Props {
   isCurrent: boolean;
 }
 
-/** Cover + title/artist row rendered above the waveform. */
+
 export const WaveTrackHeader = React.memo(
   function WaveTrackHeader({ track, queue, isCurrent }: Props) {
     const { isThisPlaying, togglePlay } = useTrackPlay(track, queue);
@@ -67,7 +67,7 @@ export const WaveTrackHeader = React.memo(
               decoding="async"
             />
           ) : (
-            <div className="w-full h-full bg-white/[0.04]" />
+            <div className="w-full h-full bg-[#141414]" />
           )}
           <span
             className={`absolute inset-0 flex items-center justify-center transition-all duration-200 group-hover:bg-black/35 ${
@@ -89,7 +89,7 @@ export const WaveTrackHeader = React.memo(
         {isCurrent ? (
           <CurrentTimeDisplay />
         ) : (
-          <span className="text-[11px] tabular-nums text-white/35 shrink-0">
+          <span className="text-[11px] tabular-nums text-[#ffffff99] shrink-0">
             {dur(track.duration)}
           </span>
         )}

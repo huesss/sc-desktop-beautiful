@@ -290,9 +290,6 @@ impl MeService {
         .await
     }
 
-    /// Owned playlists юзера, ВКЛЮЧАЯ приватные. Payload хранится в самом
-    /// user_owned_playlists.payload (а не в cached_playlists), потому что
-    /// приватный subset не должен утекать через shared cache.
     pub async fn get_playlists(
         &self,
         token: &str,
@@ -306,7 +303,6 @@ impl MeService {
         read_collection_page(&self.pg, &OWNED_PLAYLISTS, sc_user_id, page, limit).await
     }
 
-    /// Owned tracks юзера, ВКЛЮЧАЯ приватные. См. комментарий к get_playlists.
     pub async fn get_tracks(
         &self,
         token: &str,
@@ -324,7 +320,6 @@ impl MeService {
     }
 }
 
-/// `{ premium: bool }` — ответ `/me/subscription`.
 pub fn premium_response(premium: bool) -> Value {
     json!({ "premium": premium })
 }

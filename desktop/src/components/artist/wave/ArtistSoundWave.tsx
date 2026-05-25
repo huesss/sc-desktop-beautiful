@@ -24,7 +24,6 @@ import {
   useClusterWave,
 } from '../../music/cluster';
 import { AmbientLayer } from '../../music/soundwave/ambient';
-import { useInfiniteWave } from '../../music/soundwave/use-infinite-wave';
 
 interface Props {
   artistId: string;
@@ -32,10 +31,9 @@ interface Props {
   aura: Aura;
 }
 
-const CLUSTER_ORDER: ClusterId[] = ['wave', 'essence', 'vibe', 'neighbors', 'deep'];
+const CLUSTER_ORDER: ClusterId[] = ['essence', 'vibe', 'neighbors', 'deep'];
 
 const CLUSTER_ICON: Partial<Record<ClusterId, React.ReactNode>> = {
-  wave: <AudioLines size={14} />,
   essence: <Disc3 size={14} />,
   vibe: <AudioLines size={14} />,
   neighbors: <Compass size={14} />,
@@ -104,19 +102,6 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
     return CLUSTER_ORDER.map((id) => byId.get(id)).filter((c): c is NonNullable<typeof c> => !!c);
   }, [clusters]);
 
-  const waveCluster = useMemo(
-    () => orderedClusters.find((c) => c.id === 'wave') ?? null,
-    [orderedClusters],
-  );
-
-  useInfiniteWave({
-    enabled: !!artistId,
-    seedKind: 'artist',
-    seedId: artistId,
-    initialTracks: waveCluster?.tracks ?? [],
-    initialCursor: null,
-  });
-
   const handlePlay = useCallback(() => {
     if (allTracks.length === 0) return;
     const { play, pause, resume } = usePlayerStore.getState();
@@ -154,8 +139,6 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
           '--color-accent-contrast': lightAura ? '#000' : '#fff',
           background: `linear-gradient(135deg, ${auraRgba(aura, 0.16)} 0%, rgba(255,255,255,0.025) 45%, ${auraRgba(aura, 0.1)} 100%)`,
           border: `0.5px solid ${auraRgba(aura, 0.26)}`,
-          backdropFilter: 'blur(40px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(160%)',
           boxShadow: `0 30px 90px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07), 0 0 80px ${auraRgba(aura, 0.22)}`,
           transition: `box-shadow 0.6s ${EASE}`,
         } as React.CSSProperties
@@ -163,14 +146,14 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
     >
       <style>{WAVE_KEYFRAMES}</style>
 
-      {/* top sheen */}
+      {}
       <div
         className="absolute inset-x-0 top-0 h-px pointer-events-none"
         style={{
           background: `linear-gradient(90deg, transparent, ${auraRgba(aura, 0.55)}, transparent)`,
         }}
       />
-      {/* aura orbs (decorative, clipped by section overflow:hidden) */}
+      {}
       <div
         className="absolute left-[-40px] top-1/2 w-40 h-40 rounded-full pointer-events-none opacity-50"
         style={{
@@ -191,11 +174,11 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
       />
 
       <div className="relative" style={{ isolation: 'isolate' }}>
-        {/* HEADER — always visible */}
-        <div className="flex items-center gap-3 md:gap-4 p-3 md:p-3.5">
-          {/* aura badge */}
+        {}
+        <div className="flex items-center gap-3 md:gap-2 p-3 md:p-3.5">
+          {}
           <div
-            className="relative w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-white"
+            className="relative w-12 h-12 rounded-lg flex items-center justify-center shrink-0 text-white"
             style={{
               background: `linear-gradient(135deg, ${auraRgba(aura, 0.85)}, ${auraRgba(aura, 0.18)})`,
               border: `0.5px solid ${auraRgba(aura, 0.5)}`,
@@ -215,7 +198,7 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
             </span>
           </div>
 
-          {/* title + caption */}
+          {}
           <div className="flex-1 min-w-0 flex flex-col gap-[3px]">
             <div className="flex items-center gap-2 min-w-0">
               <span
@@ -225,7 +208,7 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
                 {t('artist.wave.title')}
               </span>
               <span
-                className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.18em] px-1.5 py-[2px] rounded-full text-white/90 shrink-0"
+                className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.18em] px-1.5 py-[2px] rounded-full text-white shrink-0"
                 style={{
                   background: `linear-gradient(135deg, ${auraRgba(aura, 0.4)}, rgba(255,255,255,0.05))`,
                   border: `0.5px solid ${auraRgba(aura, 0.45)}`,
@@ -235,12 +218,12 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
                 AI
               </span>
             </div>
-            <p className="text-[11px] text-white/45 truncate" title={artistName}>
+            <p className="text-[11px] text-[#ffffff99] truncate" title={artistName}>
               {t('artist.wave.desc', { name: artistName })}
             </p>
           </div>
 
-          {/* play button */}
+          {}
           <button
             type="button"
             onClick={handlePlay}
@@ -256,9 +239,7 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
             <span
               className="absolute inset-0 pointer-events-none"
               style={{
-                background:
-                  'linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent)',
-                animation: 'artistWaveSheen 2.6s ease-in-out infinite',
+                background: '#141414', animation: 'artistWaveSheen 2.6s ease-in-out infinite',
               }}
             />
             <span
@@ -275,13 +256,13 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
             </span>
           </button>
 
-          {/* chevron (rotates via CSS transform transition) */}
+          {}
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? t('nav.expand') : t('nav.collapse')}
             title={collapsed ? t('nav.expand') : t('nav.collapse')}
-            className="relative w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-110 text-white/55 hover:text-white shrink-0"
+            className="relative w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-110 text-[#ffffff99] hover:text-white shrink-0"
             style={{
               background: 'rgba(255,255,255,0.04)',
               border: `0.5px solid ${auraRgba(aura, 0.22)}`,
@@ -299,7 +280,7 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
           </button>
         </div>
 
-        {/* COLLAPSIBLE BODY — pure CSS grid-template-rows 0fr ↔ 1fr */}
+        {}
         <div
           className="grid"
           style={{
@@ -315,7 +296,7 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
                 opacity: collapsed ? 0 : 1,
               }}
             >
-              {/* divider — sits between header and clusters when expanded */}
+              {}
               <div
                 className="mx-4 md:mx-5 h-px"
                 style={{
@@ -323,7 +304,7 @@ export const ArtistSoundWave = React.memo(function ArtistSoundWave({
                 }}
               />
 
-              <div className="relative p-5 md:p-6 pt-6 md:pt-7">
+              <div className="relative p-5 md:px-5 py-4 pt-6 md:pt-7">
                 <AmbientLayer particleCount={14} blur={70} intensity={0.5} />
 
                 {isLoading ? (

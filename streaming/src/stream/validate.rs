@@ -1,4 +1,4 @@
-// Rejects 200-but-HTML/JSON proxy block-pages: real audio never starts {/[/<.
+
 pub fn looks_like_error_doc(bytes: &[u8]) -> bool {
     let trimmed = trim_ascii_start(bytes);
     matches!(trimmed.first(), Some(b'{') | Some(b'[') | Some(b'<'))

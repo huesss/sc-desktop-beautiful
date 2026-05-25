@@ -65,9 +65,7 @@ function AlbumCoverArtifactImpl({ title, coverUrl, hasStar, aura }: AlbumCoverAr
         <div
           className="absolute inset-x-0 top-0 h-1/2 pointer-events-none"
           style={{
-            background:
-              'linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 100%)',
-            mixBlendMode: 'overlay',
+            background: '#141414', mixBlendMode: 'overlay',
           }}
         />
       </div>

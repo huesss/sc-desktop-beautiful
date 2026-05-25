@@ -37,10 +37,7 @@ const TimeBlock = React.memo(function TimeBlock({
     <div
       className="relative flex flex-col items-center justify-center min-w-[64px] px-3 py-2.5 rounded-xl"
       style={{
-        background: 'linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
-        border: '0.5px solid rgba(255,255,255,0.12)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        background: '#141414', border: '0.5px solid rgba(255,255,255,0.12)',
         boxShadow:
           'inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(0,0,0,0.2), 0 4px 16px rgba(0,0,0,0.25)',
         contain: 'layout style paint',
@@ -48,7 +45,7 @@ const TimeBlock = React.memo(function TimeBlock({
     >
       <span
         ref={valueRef}
-        className="text-[24px] font-bold leading-none text-white/95"
+        className="text-[24px] font-bold leading-none text-white"
         style={{
           fontVariantNumeric: 'tabular-nums',
           fontFeatureSettings: '"tnum" 1',
@@ -70,20 +67,20 @@ const TimeBlock = React.memo(function TimeBlock({
 });
 
 const Separator = React.memo(() => (
-  <span className="text-[20px] font-light text-white/25 leading-none -mt-3">:</span>
+  <span className="text-[20px] font-light text-[#ffffff99] leading-none -mt-3">:</span>
 ));
 
 interface CountdownProps {
-  /** Unlock target as a unix-ms timestamp. */
+  
   target: number;
-  /** Called once when the countdown reaches zero. */
+  
   onExpire: () => void;
 }
 
-/**
- * Tick happens via direct DOM mutation — no React re-renders per second.
- * Only this small component owns the interval; the surrounding overlay stays static.
- */
+
+
+
+
 export const Countdown = React.memo(function Countdown({ target, onExpire }: CountdownProps) {
   const { t } = useTranslation();
   const dRef = useRef<HTMLSpanElement>(null);

@@ -12,7 +12,7 @@ impl BusClient {
         if url.is_empty() {
             return Self { js: None };
         }
-        // user:pass из URL async-nats игнорирует — вытаскиваем и кладём в опции
+
         let (host_url, user, pass) = split_creds(url);
         let mut opts = async_nats::ConnectOptions::new().retry_on_initial_connect();
         if let (Some(u), Some(p)) = (user, pass) {
@@ -36,9 +36,6 @@ impl BusClient {
         self.js.is_some()
     }
 
-    /// Fire-and-forget publish to `storage.track_uploaded` jetstream subject.
-    /// No await on the ack — backend has its own dedup; payload loss is recoverable
-    /// via the periodic reaper in `IndexingService.reap`.
     pub fn publish_track_uploaded(&self, sc_track_id: String, storage_url: String) {
         let Some(js) = self.js.clone() else {
             return;
@@ -82,8 +79,6 @@ fn split_creds(url: &str) -> (String, Option<String>, Option<String>) {
     }
 }
 
-/// `soundcloud_tracks_{id}` → `Some("{id}")`. Returns None for non-numeric tails
-/// (we only emit events for canonical SC track URNs).
 pub fn sc_track_id_from_filename(filename: &str) -> Option<String> {
     let last = filename.rsplit('_').next().unwrap_or(filename);
     if !last.is_empty() && last.bytes().all(|b| b.is_ascii_digit()) {

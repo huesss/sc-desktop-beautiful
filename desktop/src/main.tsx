@@ -1,3 +1,4 @@
+import './mockTauri';
 import { QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -7,14 +8,13 @@ import { setupCacheMaintenance } from './lib/cache';
 import { setServerPorts } from './lib/constants';
 import { trackedInvoke as invoke, setupUiWatchdog } from './lib/diagnostics';
 import { queryClient } from './lib/query-client';
+import { usePlaybackResumeStore } from './lib/playback-resume';
 import './index.css';
 import { useSettingsStore } from './stores/settings';
 
-// Sync language from persisted settings → i18n after tauriStorage rehydration
+
 useSettingsStore.persist.onFinishHydration((state) => {
-  if (state.language) {
-    void changeAppLanguage(state.language);
-  }
+  void changeAppLanguage(state.language || 'ru');
 });
 
 if (import.meta.env.DEV) {
@@ -62,9 +62,10 @@ async function fixWebviewScale() {
 async function bootstrap() {
   await fixWebviewScale();
   await useSettingsStore.persist.rehydrate();
+  await usePlaybackResumeStore.persist.rehydrate();
 
   const settings = useSettingsStore.getState();
-  await changeAppLanguage(settings.language);
+  await changeAppLanguage(settings.language || 'ru');
 
   const [staticPort, proxyPort] = await invoke<[number, number]>('get_server_ports');
   setServerPorts(staticPort, proxyPort);

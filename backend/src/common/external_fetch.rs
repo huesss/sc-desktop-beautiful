@@ -1,11 +1,4 @@
-//! Универсальный fetcher для внешних API (Genius/MusicBrainz/Wikipedia/...).
-//!
-//! Три режима:
-//! - `get_bytes`  — direct → race(proxy, relay). Без throttle, без ретраев.
-//! - `get_api`    — throttle → direct → race(proxy, relay). Для API с токеном.
-//! - `get_scrape` — race(proxy, relay) с внутренним 429-retry → fallback direct
-//!   (после throttle, без ретраев). Для HTML/web-API без токена, где direct
-//!   режется CF/rate-limit'ом.
+
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -52,7 +45,6 @@ impl ExternalFetcher {
         !self.inner.proxy_url.is_empty() || self.inner.relay.is_some()
     }
 
-    /// Direct → race(proxy, relay) на ошибке. Без throttle, без ретраев.
     pub async fn get_bytes(&self, url: &str, headers: HeaderMap) -> AppResult<Bytes> {
         match self
             .send_direct(Method::GET, url, headers.clone(), None)
@@ -66,7 +58,6 @@ impl ExternalFetcher {
         }
     }
 
-    /// API-режим: throttle → direct → race(proxy, relay). Без ретраев.
     pub async fn get_api(
         &self,
         url: &str,
@@ -77,9 +68,6 @@ impl ExternalFetcher {
         self.get_bytes(url, headers).await
     }
 
-    /// Scrape-режим: сначала race(proxy, relay) с внутренним ретраем на 429.
-    /// При исчерпании — throttle → direct (без ретраев).
-    /// Если fallback не настроен — сразу throttle → direct.
     pub async fn get_scrape(
         &self,
         url: &str,

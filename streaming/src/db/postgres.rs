@@ -42,7 +42,6 @@ impl PgPool {
 
         let pool = pg.create_pool(Some(Runtime::Tokio1), NoTls)?;
 
-        // Test connection
         let client = pool.get().await?;
         client.execute("SELECT 1", &[]).await?;
         info!("PostgreSQL connected");
@@ -50,7 +49,6 @@ impl PgPool {
         Ok(Self { pool })
     }
 
-    /// Get session by x-session-id → access_token + soundcloud_user_id
     pub async fn get_session(&self, session_id: &str) -> Result<Option<SessionInfo>, PgError> {
         let Ok(session_id) = Uuid::parse_str(session_id) else {
             return Ok(None);
@@ -69,9 +67,6 @@ impl PgPool {
         }))
     }
 
-    /// Найти CDN-запись для трека (после m4a-перехода — одна на трек).
-    /// Старые hq/sq-строки могут ещё быть в БД, но указывают на снесённые
-    /// .ogg-файлы. Берём по `quality='single'`, чтобы их не задеть.
     pub async fn find_cached_track(
         &self,
         track_urn: &str,
@@ -88,7 +83,6 @@ impl PgPool {
         Ok(row.as_ref().map(row_to_cdn_track))
     }
 
-    /// Update last_accessed_at on CDN track
     pub async fn update_last_accessed(&self, id: &str) -> Result<(), PgError> {
         let client = self.pool.get().await?;
         client
@@ -100,10 +94,6 @@ impl PgPool {
         Ok(())
     }
 
-    /// Insert (upsert) the single cdn_track row for a track.
-    /// Колонка `quality` сохранена для совместимости со старой схемой —
-    /// всегда пишем `'single'`, чтобы не конфликтовать с легаси hq/sq-строками
-    /// и попадать в уникальный индекс `(track_urn, quality)`.
     pub async fn insert_cdn_track(
         &self,
         track_urn: &str,
@@ -124,7 +114,6 @@ impl PgPool {
         Ok(id)
     }
 
-    /// Update CDN track status
     pub async fn update_cdn_track_status(&self, id: &str, status: &str) -> Result<(), PgError> {
         let client = self.pool.get().await?;
         client
@@ -136,7 +125,6 @@ impl PgPool {
         Ok(())
     }
 
-    /// Get stale CDN tracks for cleanup
     pub async fn get_stale_cdn_tracks(
         &self,
         older_than_days: u64,
@@ -157,7 +145,6 @@ impl PgPool {
         Ok(rows.iter().map(row_to_cdn_track).collect())
     }
 
-    /// Get CDN tracks ordered by oldest access (for size-based cleanup)
     pub async fn get_cdn_tracks_oldest_first(
         &self,
         limit: i64,
@@ -177,7 +164,6 @@ impl PgPool {
         Ok(rows.iter().map(row_to_cdn_track).collect())
     }
 
-    /// Delete CDN track record
     pub async fn delete_cdn_track(&self, id: &str) -> Result<(), PgError> {
         let client = self.pool.get().await?;
         client
@@ -186,7 +172,6 @@ impl PgPool {
         Ok(())
     }
 
-    /// Get random valid (non-expired) access tokens, excluding the given one.
     pub async fn get_random_valid_sessions(
         &self,
         limit: i64,
@@ -205,17 +190,21 @@ impl PgPool {
         Ok(rows.iter().map(|r| r.get(0)).collect())
     }
 
-    /// Check if user has an active subscription
     pub async fn is_premium(&self, user_urn: &str) -> Result<bool, PgError> {
         let client = self.pool.get().await?;
         let now = chrono::Utc::now().timestamp();
-        let row = client
-            .query_opt(
-                r#"SELECT 1 FROM subscriptions WHERE user_urn = $1 AND exp_date > $2"#,
-                &[&user_urn, &now],
-            )
-            .await?;
-        Ok(row.is_some())
+        for key in subscription_lookup_keys(user_urn) {
+            let row = client
+                .query_opt(
+                    r#"SELECT 1 FROM subscriptions WHERE user_urn = $1 AND exp_date > $2"#,
+                    &[&key, &now],
+                )
+                .await?;
+            if row.is_some() {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 }
 
@@ -225,4 +214,29 @@ fn row_to_cdn_track(row: &tokio_postgres::Row) -> CdnTrackRecord {
         track_urn: row.get(1),
         status: row.get(2),
     }
+}
+
+fn subscription_lookup_keys(user_ref: &str) -> Vec<String> {
+    let mut keys = Vec::new();
+    let mut push = |k: &str| {
+        let k = k.trim();
+        if k.is_empty() || keys.iter().any(|x| x == k) {
+            return;
+        }
+        keys.push(k.to_string());
+    };
+
+    push(user_ref);
+
+    for prefix in ["soundcloud:users:", "soundcloud:people:"] {
+        if let Some(id) = user_ref.strip_prefix(prefix) {
+            push(id);
+        }
+    }
+
+    if user_ref.chars().all(|c| c.is_ascii_digit()) {
+        push(&format!("soundcloud:users:{user_ref}"));
+    }
+
+    keys
 }

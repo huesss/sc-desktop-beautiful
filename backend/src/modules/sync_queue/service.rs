@@ -61,10 +61,6 @@ impl SyncQueueService {
         })
     }
 
-    /// `(pending, failed)` для UI-индикатора в /auth/status. Кешируем в Redis
-    /// на 5 секунд: при поллинге фронта раз в 30 сек и сотнях тысяч активных
-    /// сессий иначе получаем тысячи SELECT/sec по `sync_queue`. Лаг до 5 сек
-    /// для бейджа синка некритичен.
     pub async fn pending_counts_for_user(&self, sc_user_id: &str) -> AppResult<(i64, i64)> {
         if sc_user_id.is_empty() {
             return Ok((0, 0));
@@ -99,11 +95,6 @@ impl SyncQueueService {
         Ok((pending, failed))
     }
 
-    /// Поставить мутацию в очередь.
-    /// - Если есть обратное действие (like → unlike) на тот же target — удаляем
-    ///   его, новую запись не пишем: пользователь успел отменить намерение.
-    /// - Иначе INSERT с дедупом через UNIQUE(user_id, action_type, target_urn).
-    ///   Повторный enqueue того же действия — no-op (DO NOTHING).
     pub async fn enqueue(
         &self,
         user_id: &str,
@@ -145,10 +136,6 @@ impl SyncQueueService {
         Ok(())
     }
 
-    /// Cron-таска. Атомарно захватывает батч через FOR UPDATE SKIP LOCKED и
-    /// проводит SC-вызовы. На успехе — DELETE. На ошибке — backoff:
-    /// - ban/rate-limit: ждём фикс. интервал, retry_count НЕ растёт
-    /// - прочее: retry_count++, exp backoff; на MAX_RETRIES — DELETE + warn
     pub async fn flush(&self) -> AppResult<FlushStats> {
         let claimed = self.claim_batch(BATCH_SIZE).await?;
         let mut synced = 0usize;
@@ -215,16 +202,12 @@ impl SyncQueueService {
         let mut msg = err.to_string();
         msg.truncate(500);
 
-        // Внешние блокировки SC (ban/rate-limit) — не наш баг, ретраить чаще
-        // нет смысла, и инкремент retry_count в таких случаях быстро убьёт
-        // легитимные действия. Отложить и оставить retry_count.
         let backoff_sec = if sc::is_ban_error(err) {
             BACKOFF_BAN_SEC
         } else if sc::is_rate_limited(err) {
             BACKOFF_RATE_LIMIT_SEC
         } else {
-            // 2,4,8,16,32 мин (cap 60). retry_count берём из строки до
-            // инкремента, чтобы первая ошибка дала 2 мин, не 1.
+
             let next = row.retry_count + 1;
             if next >= MAX_RETRIES {
                 sqlx::query("DELETE FROM sync_queue WHERE id = $1")

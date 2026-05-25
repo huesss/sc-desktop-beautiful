@@ -23,7 +23,7 @@ interface BackendLyricsResponse {
   languageConfidence: number | null;
 }
 
-/** Parse LRC format: [mm:ss.xx] text */
+
 export function parseLRC(lrc: string): LyricLine[] {
   const lines: LyricLine[] = [];
   for (const raw of lrc.split('\n')) {
@@ -36,7 +36,7 @@ export function parseLRC(lrc: string): LyricLine[] {
   return lines;
 }
 
-/** Parse "Artist - Title" from a combined string */
+
 export function splitArtistTitle(raw: string): [string, string] | null {
   for (const sep of [' - ', ' – ', ' — ', ' // ']) {
     const idx = raw.indexOf(sep);
@@ -60,7 +60,7 @@ function toResult(data: BackendLyricsResponse | null): LyricsResult | null {
   };
 }
 
-/** Load lyrics by track URN/id. Backend resolves artist/title itself and writes to cache. */
+
 export async function getLyricsByTrack(scTrackId: string): Promise<LyricsResult | null> {
   const data = await api<BackendLyricsResponse>(
     `/lyrics/${encodeURIComponent(scTrackId)}`,
@@ -70,7 +70,7 @@ export async function getLyricsByTrack(scTrackId: string): Promise<LyricsResult 
   return toResult(data);
 }
 
-/** Manual search — preview only. Backend does NOT read or write cache. */
+
 export async function searchLyricsManual(
   artist: string,
   title: string,

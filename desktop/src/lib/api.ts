@@ -1,4 +1,4 @@
-// Re-export shim — keeps existing imports working
+
 export {
   ApiError,
   apiRequest as api,

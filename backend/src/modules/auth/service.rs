@@ -94,8 +94,6 @@ impl AuthService {
         Ok(row)
     }
 
-    /// Возвращает сессию со свежим access token. Объединяет lookup + auto-refresh
-    /// в один SQL round-trip на happy path (без refresh).
     pub async fn get_valid_session(&self, session_id: Uuid) -> AppResult<Session> {
         let session = self
             .get_session(session_id)
@@ -124,9 +122,6 @@ impl AuthService {
         Ok(self.get_valid_session(session_id).await?.access_token)
     }
 
-    /// Подбирает свежую сессию по sc_user_id (юзер может быть залогинен с нескольких
-    /// устройств) и возвращает валидный access_token. Нужен sync-воркеру: action в
-    /// очереди привязан к пользователю, а не к конкретной сессии.
     pub async fn get_valid_access_token_for_user(&self, sc_user_id: &str) -> AppResult<String> {
         let row: Option<(Uuid,)> = sqlx::query_as(
             "SELECT id FROM sessions WHERE soundcloud_user_id = $1 \
@@ -156,9 +151,6 @@ impl AuthService {
             return Err(AppError::unauthorized("No refresh token available"));
         }
 
-        // Circuit breaker: если этот session недавно зафейлился — не идём в SC
-        // снова (защита от retry-storm на стороне фронта/прокси, который дёргает
-        // /refresh на каждую 401-ошибку). TTL ключа = REFRESH_FAIL_TTL_SEC.
         let session_key = session.id.to_string();
         if let Ok(Some(cached)) = self.health.get_cached_refresh_failure(&session_key).await {
             return Err(AppError::unauthorized(cached));

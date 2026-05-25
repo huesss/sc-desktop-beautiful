@@ -11,9 +11,7 @@ pub struct Config {
     pub sc_proxy_url: String,
     pub sc_proxy_fallback: bool,
     pub sc_oauth_fallback_sessions: usize,
-    /// SC_COOKIES может содержать одну или несколько cookies-строк,
-    /// разделённых переводом строки. Каждая обрабатывается как отдельная
-    /// сессия в пуле — ротация на 429.
+
     pub sc_cookies: Vec<String>,
     pub premium_only: bool,
     pub storage_url: String,

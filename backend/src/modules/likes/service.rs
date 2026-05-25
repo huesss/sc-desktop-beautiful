@@ -19,9 +19,6 @@ impl LikesService {
         Arc::new(Self { pg, sync_queue })
     }
 
-    /// Оптимистичный лайк трека. Если в body приехал track_data — заодно
-    /// прогреваем indexed_tracks, чтобы холодное чтение /me/likes/tracks имело
-    /// payload без захода в SC.
     pub async fn like_track(
         &self,
         sc_user_id: &str,
@@ -64,9 +61,6 @@ impl LikesService {
         Ok(json!({ "status": "queued", "actionType": "unlike_playlist" }))
     }
 
-    /// Холодная проверка лайка плейлиста: смотрим только в user_likes_playlists.
-    /// Лайки, поставленные на SC web и ещё не утянутые refresh'ем, сюда не
-    /// попадут — это ожидаемо (refresh их подтянет на следующем тике TTL).
     pub async fn is_playlist_liked(
         &self,
         sc_user_id: &str,

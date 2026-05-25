@@ -9,7 +9,7 @@ interface QrCodeProps {
   size?: number;
 }
 
-const LOGO_PX = 256; // 2× для retina-чёткости
+const LOGO_PX = 256; 
 
 function lighten(hex: string, amount: number): string {
   const m = hex.replace('#', '').match(/.{2}/g);
@@ -41,14 +41,14 @@ function loadLogo(): Promise<HTMLImageElement> {
   });
 }
 
-/**
- * Композитим круглый «app-icon»-style бейдж: SC-favicon заполняет весь круг,
- * сверху soft top-light highlight (Apple glass), снизу — eгкая внутренняя тень
- * для глубины, по периметру — тонкая белая hairline.
- *
- * favicon уже бренд-цвета (orange + cloud), так что accent сам по себе для
- * бейджа не используется — он управляет точками QR и обвязкой кадра.
- */
+
+
+
+
+
+
+
+
 async function buildLogoBadge(): Promise<string> {
   const img = await loadLogo();
   const canvas = document.createElement('canvas');
@@ -63,7 +63,7 @@ async function buildLogoBadge(): Promise<string> {
   const cy = LOGO_PX / 2;
   const r = LOGO_PX / 2;
 
-  // 1. Лого на весь круг.
+  
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -71,7 +71,7 @@ async function buildLogoBadge(): Promise<string> {
   ctx.drawImage(img, 0, 0, LOGO_PX, LOGO_PX);
   ctx.restore();
 
-  // 2. Top-light highlight (gloss).
+  
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -84,7 +84,7 @@ async function buildLogoBadge(): Promise<string> {
   ctx.fillRect(0, 0, LOGO_PX, LOGO_PX);
   ctx.restore();
 
-  // 3. Bottom inner shadow (depth).
+  
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -96,7 +96,7 @@ async function buildLogoBadge(): Promise<string> {
   ctx.fillRect(0, 0, LOGO_PX, LOGO_PX);
   ctx.restore();
 
-  // 4. Тонкая белая hairline.
+  
   ctx.lineWidth = 2;
   ctx.strokeStyle = 'rgba(255,255,255,0.55)';
   ctx.beginPath();
@@ -116,7 +116,7 @@ export const QrCode = React.memo(({ payload, size = 280 }: QrCodeProps) => {
   const accentSoft = useMemo(() => hexToRgba(accent, 0.55), [accent]);
   const accentGlow = useMemo(() => hexToRgba(accent, 0.45), [accent]);
 
-  // Бейдж перерисовываем один раз — он не зависит от accent.
+  
   useEffect(() => {
     let cancelled = false;
     buildLogoBadge()

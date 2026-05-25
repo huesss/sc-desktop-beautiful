@@ -3,9 +3,9 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { tauriStorage } from '../lib/tauri-storage';
 
 interface NewsState {
-  /** IDs permanently dismissed by user */
+  
   permanentlyDismissed: string[];
-  /** IDs dismissed for this session only */
+  
   sessionDismissed: string[];
   dismissForever: (id: string) => void;
   dismissOnce: (id: string) => void;

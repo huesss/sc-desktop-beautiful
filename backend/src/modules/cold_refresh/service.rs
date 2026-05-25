@@ -20,46 +20,28 @@ const REFRESH_BATCH_SIZE: usize = 500;
 const EVICT_CHUNK_SIZE: i64 = 10_000;
 const EVICT_BETWEEN_MS: u64 = 100;
 
-/// Какую SC-коллекцию синхронизируем + куда писать данные.
 #[derive(Debug, Clone, Copy)]
 pub struct UserCollection {
-    /// SC-эндпоинт без query-параметров (`/me/likes/tracks`, `/me/followings`, …).
+
     pub sc_path: &'static str,
-    /// Lock-ключ в Redis. Без юзера — добавится в `key_for`.
     pub lock_kind: &'static str,
-    /// Зеркало состояния юзера в PG.
+
     pub mirror_table: &'static str,
-    /// Имя колонки-ключа в `mirror_table`: `sc_track_id` | `playlist_urn` | `target_user_urn`.
     pub mirror_key_col: &'static str,
-    /// Тип общедоступного кеша для public-сущностей. Owned-коллекции пишут
-    /// payload только в mirror (`mirror_payload_col`), потому что приватные
-    /// поля владельца нельзя класть в shared cache, который читают все.
-    /// Public-копию owned-сущностей всё равно зеркалируем в shared cache,
-    /// чтобы read-path по `/tracks/{urn}` / `/playlists/{urn}` для других
-    /// юзеров находил трек без обращения к SC.
+
     pub shared_cache: SharedCache,
-    /// Если задано — payload юзера пишется в эту колонку зеркала (`payload`
-    /// для owned-коллекций). Иначе payload идёт только в shared cache.
+
     pub mirror_payload_col: Option<&'static str>,
-    /// Если задано — payload пишется в shared cache **только** когда у объекта
-    /// `sharing == "public"`. None — пишем всегда (likes/follows: мы видим
-    /// чужие public-объекты, приватных там по определению быть не может).
     pub public_only_to_shared: bool,
-    /// `true` — у строк есть `wanted_state` (likes/follows). `false` — owned, без отмены.
     pub has_wanted_state: bool,
-    /// Если задано — INSERT в mirror'е скипается при наличии pending-удаления
-    /// в sync_queue (нужно owned_playlists, чтобы refresh не воскресил
-    /// удалённый плейлист до flush'а).
+
     pub guard_pending_delete_action: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum SharedCache {
-    /// `indexed_tracks` (sc_track_id, raw_sc_data). Извлекаем sc_track_id из urn.
     Tracks,
-    /// `cached_playlists` (playlist_urn, payload). Ключ — целый urn.
     Playlists,
-    /// `cached_users` (user_urn, payload). Ключ — целый urn.
     Users,
 }
 
@@ -123,13 +105,6 @@ pub const OWNED_TRACKS: UserCollection = UserCollection {
     guard_pending_delete_action: None,
 };
 
-/// Сервис фоновых refresh'ей cold-cache.
-/// - Дедуп параллельных обновлений: Redis SETNX-лок на ключ ресурса с TTL
-///   (`COLD_REFRESH_LOCK_TTL_SEC`). Другой воркер, видя занятый лок, тихо
-///   отваливается.
-/// - Bounded concurrency: глобальный `Semaphore` ограничивает число живых
-///   SC-fetch'ей (`COLD_REFRESH_CONCURRENCY`), чтобы при пике reads не
-///   выжечь токены SC.
 pub struct ColdRefreshService {
     sc: ScClient,
     pg: PgPool,
@@ -171,11 +146,6 @@ impl ColdRefreshService {
         }
     }
 
-    /// Гарантирует, что зеркало `mirror_table` для данного юзера достаточно
-    /// свежо. На пустом зеркале — синхронно тянет всё из SC (seed). На stale —
-    /// спавнит фоновую задачу: первый клиент после TTL заплатит за refresh,
-    /// остальные читают параллельно текущий снапшот. На свежем — no-op.
-    /// `extra_params` прокидываются в SC (например `access` для liked tracks).
     pub async fn ensure_collection(
         self: &Arc<Self>,
         coll: UserCollection,
@@ -213,10 +183,6 @@ impl ColdRefreshService {
         Ok(())
     }
 
-    /// Полный refresh per-user коллекции из SC. Тянет все страницы, UPSERT'ит
-    /// shared cache + mirror'ы. Локальные строки, которых нет в SC и которые
-    /// не pending — удаляются (SC побеждает). Pending строки (progress=true
-    /// или wanted_state=false) — не трогаем: пусть sync_queue разберётся.
     pub async fn refresh_collection(
         &self,
         coll: UserCollection,
@@ -233,9 +199,6 @@ impl ColdRefreshService {
             .fetch_all_pages(coll.sc_path, token, extra_params)
             .await?;
 
-        // SC отдаёт новые записи первыми; разворачиваем в (старые→новые) порядок,
-        // чтобы `created_at` рос в нашем порядке и `ORDER BY created_at DESC`
-        // потом отдавал новые сверху.
         let mut ordered: Vec<(String, &Value)> = Vec::with_capacity(items.len());
         for item in items.iter().rev() {
             let Some(urn) = item.get("urn").and_then(|v| v.as_str()) else {
@@ -253,9 +216,6 @@ impl ColdRefreshService {
 
         let seen: Vec<String> = ordered.iter().map(|(k, _)| k.clone()).collect();
 
-        // Чанковые bulk UPSERT'ы: на юзере с 10к лайков это 10к/REFRESH_BATCH_SIZE
-        // транзакций вместо 10к. fsync per-commit, lock contention в shared
-        // таблицах — минимальные.
         for chunk in ordered.chunks(REFRESH_BATCH_SIZE) {
             let mut shared_keys: Vec<String> = Vec::with_capacity(chunk.len());
             let mut shared_payloads: Vec<Value> = Vec::with_capacity(chunk.len());
@@ -388,9 +348,6 @@ impl ColdRefreshService {
         Ok(if acquired { Some(()) } else { None })
     }
 
-    /// Cron-петля очистки давно нечитанных shared-entity-кешей: cached_users
-    /// и cached_playlists. indexed_tracks НЕ трогаем — на ней живёт enrich
-    /// pipeline + наши собственные сущности (artists/albums).
     pub fn spawn_evict_loop(self: Arc<Self>, shutdown: CancellationToken) {
         tokio::spawn(async move {
             let mut ticker = tokio::time::interval(EVICT_TICK);
@@ -430,9 +387,7 @@ impl ColdRefreshService {
             cutoff,
         )
         .await?;
-        // cached_playlist_tracks — справочник позиций. После эвикции родителей
-        // подбираем оставшихся «сирот» теми же чанками: ANTI JOIN дешевле
-        // NOT IN на больших наборах.
+
         let tracks_n = evict_orphan_playlist_tracks(&self.pg).await?;
         if users_n > 0 || playlists_n > 0 || tracks_n > 0 {
             info!(
@@ -446,8 +401,6 @@ impl ColdRefreshService {
     }
 }
 
-/// Chunked-DELETE с короткой паузой между итерациями. Защита от длинных
-/// эксклюзивных блокировок на cached_*-таблицах при большом cutoff'е.
 async fn evict_chunked(pg: &PgPool, sql: &str, cutoff: DateTime<Utc>) -> AppResult<u64> {
     let mut total: u64 = 0;
     loop {
@@ -548,16 +501,6 @@ async fn batch_upsert_mirror(
     let key_col = coll.mirror_key_col;
     let table = coll.mirror_table;
 
-    // Источники значений в SELECT-проекции и блок ON CONFLICT — три варианта
-    // mirror-форм (owned-с-payload, likes/followings, плейн-owned). Имена
-    // подставляются через format!() из &'static str — user-input в SQL не
-    // попадает.
-    //
-    // `created_at = clock_timestamp()` (volatile per-row), а не дефолтный
-    // `now()` (transaction-time, одинаков на весь батч): без этого 500 строк
-    // refresh-батча получают идентичный ts и ORDER BY теряет SC-порядок.
-    // ON CONFLICT updates НЕ переписывают created_at — сохраняем initial seed
-    // позицию между refresh'ами.
     let (select_cols, update_set) = if let Some(p) = coll.mirror_payload_col {
         (
             "$1, t.k, t.p, false, now(), clock_timestamp()".to_string(),
@@ -593,8 +536,7 @@ async fn batch_upsert_mirror(
     };
 
     let guard_clause = if let Some(g) = coll.guard_pending_delete_action {
-        // owned + pending delete защита: не воскрешаем строку, которую юзер
-        // уже удалил, но воркер sync_queue ещё не отправил в SC.
+
         format!(
             "WHERE NOT EXISTS ( \
                  SELECT 1 FROM sync_queue \
@@ -650,13 +592,6 @@ async fn delete_orphans(
     Ok(())
 }
 
-/// Чтение страницы из mirror-таблицы юзера. Payload берётся либо из самой
-/// mirror-колонки (`mirror_payload_col`, owned-сущности), либо JOIN'ом
-/// в shared cache по ключу коллекции.
-///
-/// Tie-breaker по key-колонке обязателен: batched refresh пишет 500 строк
-/// одной транзакцией с общим `created_at`, без второго ключа сортировки
-/// порядок внутри батча неопределён.
 pub async fn read_collection_page(
     pg: &PgPool,
     coll: &UserCollection,

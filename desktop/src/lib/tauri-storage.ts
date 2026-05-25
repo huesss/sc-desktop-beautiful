@@ -25,7 +25,7 @@ export const tauriStorage: StateStorage = {
         return await readTextFile(path, { baseDir: BASE_DIR });
       }
     } catch {
-      // first run or corrupted — treat as empty
+
     }
     return null;
   },
@@ -36,7 +36,7 @@ export const tauriStorage: StateStorage = {
     try {
       await writeTextFile(path, value, { baseDir: BASE_DIR });
     } catch {
-      // silently fail — don't break the app
+
     }
   },
 
@@ -46,7 +46,7 @@ export const tauriStorage: StateStorage = {
       const { remove } = await import('@tauri-apps/plugin-fs');
       await remove(path, { baseDir: BASE_DIR });
     } catch {
-      // file doesn't exist — ok
+      
     }
   },
 };

@@ -48,9 +48,9 @@ function ArtistAlbumsTabImpl({ artistId, aura }: ArtistAlbumsTabProps) {
 
   if (items.length === 0) {
     return (
-      <div className="py-24 flex flex-col items-center gap-4">
+      <div className="py-24 flex flex-col items-center gap-2">
         <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center"
+          className="w-16 h-16 rounded-lg flex items-center justify-center"
           style={{
             background: 'rgba(255,255,255,0.03)',
             border: '0.5px solid rgba(255,255,255,0.06)',
@@ -58,7 +58,7 @@ function ArtistAlbumsTabImpl({ artistId, aura }: ArtistAlbumsTabProps) {
         >
           <Disc3 size={24} className="text-white/15" />
         </div>
-        <p className="text-white/30 text-sm">{t('artist.noAlbums')}</p>
+        <p className="text-[#ffffff99] text-sm">{t('artist.noAlbums')}</p>
       </div>
     );
   }
@@ -81,8 +81,8 @@ const YearGroup = memo(
   ({ year, items, aura }: { year: number | null; items: ArtistAlbum[]; aura: Aura }) => {
     const { t } = useTranslation();
     return (
-      <div className="flex flex-col md:flex-row md:gap-8 gap-4">
-        {/* Year marker */}
+      <div className="flex flex-col md:flex-row md:gap-8 gap-2">
+        {}
         <div className="md:w-[200px] md:shrink-0 flex md:flex-col md:items-end items-center md:sticky md:top-24 self-start">
           <div className="flex items-baseline gap-3 md:flex-col md:items-end md:gap-1 min-w-0 max-w-full">
             <span
@@ -97,13 +97,13 @@ const YearGroup = memo(
             >
               {year ?? '∞'}
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/30 md:text-right whitespace-nowrap">
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ffffff99] md:text-right whitespace-nowrap">
               {year != null ? t('artist.releaseYear') : t('artist.unknownYear')} · {items.length}
             </span>
           </div>
         </div>
 
-        {/* Albums grid */}
+        {}
         <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
           {items.map((al) => (
             <AlbumCard key={al.id} album={al} aura={aura} />
@@ -124,12 +124,10 @@ const AlbumCard = memo(({ album, aura }: { album: ArtistAlbum; aura: Aura }) => 
     <button
       type="button"
       onClick={() => navigate(`/album/${encodeURIComponent(album.id)}`)}
-      className="group relative flex flex-col gap-2 text-left p-3 rounded-2xl cursor-pointer transition-all duration-500 hover:scale-[1.03]"
+      className="group relative flex flex-col gap-2 text-left p-3 rounded-lg cursor-pointer transition-all duration-500 hover:scale-[1.03]"
       style={{
         background: 'rgba(255,255,255,0.03)',
         border: '0.5px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
       }}
     >
       <div
@@ -157,8 +155,6 @@ const AlbumCard = memo(({ album, aura }: { album: ArtistAlbum; aura: Aura }) => 
           style={{
             background: 'rgba(0,0,0,0.55)',
             color: '#fff',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
             border: '0.5px solid rgba(255,255,255,0.12)',
           }}
         >
@@ -166,10 +162,10 @@ const AlbumCard = memo(({ album, aura }: { album: ArtistAlbum; aura: Aura }) => 
         </div>
       </div>
       <div className="px-1 min-w-0">
-        <p className="text-[13px] font-semibold text-white/90 truncate group-hover:text-white">
+        <p className="text-[13px] font-semibold text-white truncate group-hover:text-white">
           {album.title}
         </p>
-        <p className="text-[11px] text-white/35 truncate">
+        <p className="text-[11px] text-[#ffffff99] truncate">
           {album.role === 'primary' ? kindLabel : t('artist.featured')}
           {album.release_year != null && ` · ${album.release_year}`}
         </p>

@@ -154,7 +154,7 @@ fn start_pactl_subscribe_loop(handle: &AppHandle) {
     use std::io::BufRead;
 
     loop {
-        // Use pactl subscribe for instant sink change notifications
+
         let child = std::process::Command::new("pactl")
             .args(["subscribe"])
             .stdout(std::process::Stdio::piped())
@@ -162,7 +162,7 @@ fn start_pactl_subscribe_loop(handle: &AppHandle) {
             .spawn();
 
         let Ok(mut child) = child else {
-            // Fallback to polling if pactl subscribe fails
+
             eprintln!("[Audio] pactl subscribe failed, falling back to polling");
             start_polling_loop(handle);
             return;
@@ -173,8 +173,7 @@ fn start_pactl_subscribe_loop(handle: &AppHandle) {
 
         for line in reader.lines() {
             let Ok(line) = line else { break };
-            // Listen for sink changes: "Event 'change' on sink #..."
-            // and server changes (default sink changed): "Event 'change' on server"
+
             if !line.contains("sink") && !line.contains("server") {
                 continue;
             }
@@ -182,7 +181,6 @@ fn start_pactl_subscribe_loop(handle: &AppHandle) {
             handle_default_output_change(handle);
         }
 
-        // pactl subscribe exited, wait and retry
         let _ = child.wait();
         std::thread::sleep(Duration::from_secs(2));
     }

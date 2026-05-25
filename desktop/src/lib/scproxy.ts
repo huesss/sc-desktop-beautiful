@@ -6,8 +6,8 @@ type PatchedImage = HTMLImageElement & {
   __skipProxyOnce?: boolean;
 };
 
-// Hook <img>.src — route through permanent image cache, store original URL
-// to enable retry on error.
+
+
 const imgSrcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')!;
 Object.defineProperty(HTMLImageElement.prototype, 'src', {
   set(url: string) {
@@ -30,7 +30,7 @@ Object.defineProperty(HTMLImageElement.prototype, 'src', {
   },
 });
 
-// Global: hide broken images (proxy error, CDN blocked, etc.)
+
 document.addEventListener(
   'error',
   (e) => {
@@ -60,7 +60,7 @@ document.addEventListener(
   true,
 );
 
-// Hook fetch()
+
 const origFetch = window.fetch.bind(window);
 window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (typeof input === 'string' && input.startsWith('http') && !isWhitelistedAssetUrl(input)) {

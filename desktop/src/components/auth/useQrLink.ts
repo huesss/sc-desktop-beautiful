@@ -6,23 +6,23 @@ interface QrLinkState {
   claimToken?: string;
   linkRequestId?: string;
   expiresAt?: Date;
-  /** sessionId, который пришёл с бэка (только для pull). */
+  
   sessionId?: string;
   error?: string;
 }
 
 const POLL_INTERVAL_MS = 2000;
 
-/**
- * Хук для QR-link флоу.
- *
- * pull: текущее устройство НЕ залогинено, ждёт что другое отсканит и пушит сессию.
- *       После status=claimed — sessionId записан в state, его нужно сохранить как
- *       свою сессию. onSuccess сработает автоматически.
- * push: текущее устройство залогинено, генерирует QR для передачи сессии.
- *       После status=claimed — другое устройство залогинено, локально ничего не
- *       меняется.
- */
+
+
+
+
+
+
+
+
+
+
 export function useQrLink(mode: 'pull' | 'push', onSuccess?: (sessionId: string) => void) {
   const [state, setState] = useState<QrLinkState>({ status: 'idle' });
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -74,7 +74,7 @@ export function useQrLink(mode: 'pull' | 'push', onSuccess?: (sessionId: string)
             return;
           }
         } catch {
-          // ignore transient errors
+          
         }
         pollRef.current = setTimeout(poll, POLL_INTERVAL_MS);
       };

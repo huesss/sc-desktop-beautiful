@@ -32,17 +32,37 @@ function artworkToLarge(url: string | null): string | undefined {
   return url.replace(/-[^-./]+(\.[^.]+)$/, '-t500x500$1');
 }
 
+const TITLE_SEPARATORS = [' - ', ' — ', ' – ', ' -- '] as const;
+
+function getDiscordRpcArtist(track: Track): string {
+  const display = getArtistDisplay(track);
+  if (display.isEnriched) {
+    return display.primary;
+  }
+  const title = getDisplayTitle(track);
+  for (const sep of TITLE_SEPARATORS) {
+    const idx = track.title.indexOf(sep);
+    if (idx > 0) {
+      const left = track.title.slice(0, idx).trim();
+      const right = track.title.slice(idx + sep.length).trim();
+      if (right === title || right.toLowerCase() === title.toLowerCase()) {
+        return left;
+      }
+    }
+  }
+  return display.primary || track.user.username;
+}
+
 async function updatePresence(track: Track) {
   if (!(await ensureConnected())) return;
 
   try {
     const isPlaying = usePlayerStore.getState().isPlaying;
     const { discordRpcMode, discordRpcShowButton } = useSettingsStore.getState();
-    const display = getArtistDisplay(track);
     await invoke('discord_set_activity', {
       track: {
         title: getDisplayTitle(track),
-        artist: display.primary || track.user.username,
+        artist: getDiscordRpcArtist(track),
         artwork_url: artworkToLarge(track.artwork_url),
         track_url: track.permalink_url ? `${track.permalink_url}`.replace(/\?.*$/, '') : undefined,
         duration_secs: Math.round(track.duration / 1000),
@@ -153,7 +173,7 @@ subscribeAudioTime(() => {
   const elapsed = Math.round(getCurrentTime());
   const drift = Math.abs(elapsed - lastElapsed);
 
-  // Re-sync Discord timestamps on manual seek / large jumps without spamming updates every second.
+  
   if (drift >= 2) {
     lastElapsed = elapsed;
     schedulePresenceSync(currentTrack, 180);

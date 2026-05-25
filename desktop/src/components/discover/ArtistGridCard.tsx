@@ -29,12 +29,10 @@ function ArtistGridCardImpl({ artist }: ArtistGridCardProps) {
     <button
       type="button"
       onClick={() => navigate(`/artist/${encodeURIComponent(artist.id)}`)}
-      className="group relative h-full w-full flex flex-col items-center gap-3 p-5 rounded-3xl cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:scale-[1.03] overflow-hidden"
+      className="group relative h-full w-full flex flex-col items-center gap-3 p-5 rounded-lg cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:scale-[1.03] overflow-hidden"
       style={{
         background: 'rgba(255,255,255,0.03)',
         border: '0.5px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(20px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
       }}
     >
       <div
@@ -86,7 +84,7 @@ function ArtistGridCardImpl({ artist }: ArtistGridCardProps) {
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <span
-                className="text-white/95 font-black tracking-tight select-none"
+                className="text-white font-black tracking-tight select-none"
                 style={{
                   fontSize: 'clamp(28px, 3vw, 36px)',
                   textShadow: '0 6px 18px rgba(0,0,0,0.5)',
@@ -112,7 +110,7 @@ function ArtistGridCardImpl({ artist }: ArtistGridCardProps) {
 
       <div className="text-center min-w-0 w-full relative flex flex-col gap-1">
         <div className="flex items-center justify-center gap-1.5 min-w-0">
-          <p className="text-[14px] font-bold text-white/95 truncate group-hover:text-white">
+          <p className="text-[14px] font-bold text-white truncate group-hover:text-white">
             {artist.name}
           </p>
           {verified && (
@@ -125,7 +123,7 @@ function ArtistGridCardImpl({ artist }: ArtistGridCardProps) {
           )}
         </div>
         {artist.country && (
-          <p className="inline-flex items-center justify-center gap-1 text-[10px] text-white/35">
+          <p className="inline-flex items-center justify-center gap-1 text-[10px] text-[#ffffff99]">
             <Globe size={9} /> {artist.country}
           </p>
         )}
@@ -136,7 +134,7 @@ function ArtistGridCardImpl({ artist }: ArtistGridCardProps) {
           {artist.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] text-white/55"
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] text-[#ffffff99]"
               style={{
                 background: 'rgba(255,255,255,0.04)',
                 border: '0.5px solid rgba(255,255,255,0.08)',
@@ -178,9 +176,9 @@ function ArtistGridCardImpl({ artist }: ArtistGridCardProps) {
             }}
           />
         </div>
-        <div className="mt-1.5 flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.2em] text-white/35">
+        <div className="mt-1.5 flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.2em] text-[#ffffff99]">
           <span className="inline-flex items-center gap-1">
-            <Headphones size={9} className="text-white/30" />
+            <Headphones size={9} className="text-[#ffffff99]" />
             {fc(artist.monthly_listeners)}
           </span>
           <span style={{ color: auraRgba(aura, 0.9) }}>
@@ -203,15 +201,15 @@ const Stat = memo(function Stat({
 }) {
   return (
     <span
-      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] tabular-nums text-white/55"
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] tabular-nums text-[#ffffff99]"
       style={{
         background: 'rgba(255,255,255,0.03)',
         border: '0.5px solid rgba(255,255,255,0.06)',
       }}
       title={label}
     >
-      <span className="text-white/40">{icon}</span>
-      <span className="font-bold text-white/85">{value}</span>
+      <span className="text-[#ffffff99]">{icon}</span>
+      <span className="font-bold text-[#ffffff99]">{value}</span>
     </span>
   );
 });

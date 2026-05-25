@@ -42,12 +42,17 @@ impl SubscriptionsService {
             return Ok(true);
         }
         let now = chrono::Utc::now().timestamp();
-        let row: Option<(i64,)> =
-            sqlx::query_as("SELECT exp_date FROM subscriptions WHERE user_urn = $1")
-                .bind(user_urn)
-                .fetch_optional(&self.pg)
-                .await?;
-        Ok(row.map(|(exp,)| exp > now).unwrap_or(false))
+        for key in subscription_lookup_keys(user_urn) {
+            let row: Option<(i64,)> =
+                sqlx::query_as("SELECT exp_date FROM subscriptions WHERE user_urn = $1")
+                    .bind(&key)
+                    .fetch_optional(&self.pg)
+                    .await?;
+            if row.is_some_and(|(exp,)| exp > now) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     pub async fn list(&self) -> AppResult<Vec<Subscription>> {
@@ -179,4 +184,29 @@ impl SubscriptionsService {
             }
         });
     }
+}
+
+fn subscription_lookup_keys(user_ref: &str) -> Vec<String> {
+    let mut keys = Vec::new();
+    let mut push = |k: &str| {
+        let k = k.trim();
+        if k.is_empty() || keys.iter().any(|x| x == k) {
+            return;
+        }
+        keys.push(k.to_string());
+    };
+
+    push(user_ref);
+
+    for prefix in ["soundcloud:users:", "soundcloud:people:"] {
+        if let Some(id) = user_ref.strip_prefix(prefix) {
+            push(id);
+        }
+    }
+
+    if user_ref.chars().all(|c| c.is_ascii_digit()) {
+        push(&format!("soundcloud:users:{user_ref}"));
+    }
+
+    keys
 }

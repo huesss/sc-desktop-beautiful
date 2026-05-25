@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import type { PlaybackContext } from '../lib/playback-context';
 import { tauriStorage } from '../lib/tauri-storage';
 
 export interface EnrichmentArtist {
@@ -75,7 +76,7 @@ export interface Track {
 
 type RepeatMode = 'off' | 'one' | 'all';
 export type PlaybackQuality = 'hq' | 'sq';
-export type PlaybackSource = 'storage' | 'api';
+export type PlaybackSource = 'storage' | 'api' | 'direct' | 'anon';
 
 export const PLAYBACK_RATE_MIN = 0.5;
 export const PLAYBACK_RATE_MAX = 2.0;
@@ -98,10 +99,10 @@ export function clampPitchSemitones(semi: number): number {
   return Math.round(Math.max(PITCH_SEMITONES_MIN, Math.min(PITCH_SEMITONES_MAX, semi)) * 2) / 2;
 }
 
-/** Pitch the player should treat as effective:
- *  - in 'auto' mode it's the semitone equivalent of the playback rate (rate ↔ pitch coupled)
- *  - in 'manual' mode it's the user-driven slider value
- */
+
+
+
+
 export function getEffectivePitchSemitones(
   rate: number,
   mode: PitchControlMode,
@@ -126,17 +127,18 @@ interface PlayerState {
   queue: Track[];
   originalQueue: Track[] | null;
   queueIndex: number;
+  playbackContext: PlaybackContext | null;
   isPlaying: boolean;
   volume: number;
   volumeBeforeMute: number;
   shuffle: boolean;
   repeat: RepeatMode;
-  /** Download progress 0-1 when loading from API, null when not downloading */
+  
   downloadProgress: number | null;
   playbackQuality: PlaybackQuality | null;
   playbackSource: PlaybackSource | null;
 
-  play: (track: Track, queue?: Track[]) => void;
+  play: (track: Track, queue?: Track[], context?: PlaybackContext | null) => void;
   playFromQueue: (index: number) => void;
   pause: () => void;
   resume: () => void;
@@ -172,6 +174,7 @@ export const usePlayerStore = create<PlayerState>()(
       queue: [],
       originalQueue: null,
       queueIndex: -1,
+      playbackContext: null,
       isPlaying: false,
       volume: 50,
       volumeBeforeMute: 50,
@@ -184,13 +187,14 @@ export const usePlayerStore = create<PlayerState>()(
       pitchSemitones: 0,
       pitchControlMode: 'auto',
 
-      play: (track, queue) => {
+      play: (track, queue, context = null) => {
         if (queue) {
           const { shuffle } = get();
           const idx = queue.findIndex((t) => t.urn === track.urn);
           const realIdx = idx >= 0 ? idx : 0;
+          const preserveQueue = context?.kind === 'vibe';
 
-          if (shuffle) {
+          if (shuffle && !preserveQueue) {
             const original = [...queue];
             const rest = [...queue.slice(0, realIdx), ...queue.slice(realIdx + 1)];
             shuffleArray(rest);
@@ -198,6 +202,7 @@ export const usePlayerStore = create<PlayerState>()(
               currentTrack: track,
               queue: [track, ...rest],
               queueIndex: 0,
+              playbackContext: context,
               isPlaying: true,
               originalQueue: original,
             });
@@ -206,6 +211,7 @@ export const usePlayerStore = create<PlayerState>()(
               currentTrack: track,
               queue,
               queueIndex: realIdx,
+              playbackContext: context,
               isPlaying: true,
               originalQueue: null,
             });
@@ -216,6 +222,7 @@ export const usePlayerStore = create<PlayerState>()(
             currentTrack: track,
             queue: [...currentQueue, track],
             queueIndex: currentQueue.length,
+            playbackContext: context,
             isPlaying: true,
           });
         }
@@ -271,7 +278,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       setVolume: (v) => {
-        const clamped = Math.round(Math.max(0, Math.min(200, v)));
+        const clamped = Math.round(Math.max(0, Math.min(100, v)));
         const prev = get().volume;
         set({
           volume: clamped,
@@ -289,7 +296,7 @@ export const usePlayerStore = create<PlayerState>()(
         set((s) => {
           const idx = s.currentTrack ? queue.findIndex((t) => t.urn === s.currentTrack!.urn) : -1;
           if (s.shuffle && idx >= 0) {
-            // Shuffle everything after current track
+            
             const after = [...queue.slice(0, idx), ...queue.slice(idx + 1)];
             shuffleArray(after);
             return {
@@ -308,7 +315,7 @@ export const usePlayerStore = create<PlayerState>()(
       addToQueue: (tracks) =>
         set((s) => {
           if (s.shuffle && s.queueIndex >= 0) {
-            // Insert new tracks at random positions after current index
+            
             const queue = [...s.queue];
             for (const track of tracks) {
               const pos =
@@ -374,7 +381,7 @@ export const usePlayerStore = create<PlayerState>()(
       toggleShuffle: () => {
         const { shuffle, queue, queueIndex, currentTrack } = get();
         if (!shuffle) {
-          // ON: save original order, shuffle everything after current track
+          
           const original = [...queue];
           const after = [...queue.slice(queueIndex + 1)];
           shuffleArray(after);
@@ -384,7 +391,7 @@ export const usePlayerStore = create<PlayerState>()(
             queue: [...queue.slice(0, queueIndex + 1), ...after],
           });
         } else {
-          // OFF: restore original order
+          
           const { originalQueue } = get();
           if (originalQueue && currentTrack) {
             const idx = originalQueue.findIndex((t) => t.urn === currentTrack.urn);
@@ -431,7 +438,24 @@ export const usePlayerStore = create<PlayerState>()(
     {
       name: 'sc-player',
       storage: createJSONStorage(() => tauriStorage),
-      version: 3,
+      version: 4,
+      migrate: (persisted) => {
+        const s = persisted as {
+          volume?: number;
+          volumeBeforeMute?: number;
+          isPlaying?: boolean;
+        };
+        if (typeof s.volume === 'number' && s.volume > 100) {
+          s.volume = Math.min(100, s.volume);
+        }
+        if (typeof s.volumeBeforeMute === 'number' && s.volumeBeforeMute > 100) {
+          s.volumeBeforeMute = Math.min(100, s.volumeBeforeMute);
+        }
+        return persisted as typeof persisted;
+      },
+      onRehydrateStorage: () => () => {
+        usePlayerStore.setState({ isPlaying: false });
+      },
       partialize: (state) => ({
         volume: state.volume,
         volumeBeforeMute: state.volumeBeforeMute,

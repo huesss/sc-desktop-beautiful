@@ -101,8 +101,7 @@ pub async fn apply(
     };
 
     if let (Some(artist_id), Some(sc_id)) = (primary_artist_id, uploader_sc_user_id) {
-        // Сохраняем uploader_sc_user_id в indexed_tracks, чтобы reupload-pattern
-        // увидел текущий трек в счётчике сразу.
+
         sqlx::query(
             "UPDATE indexed_tracks SET uploader_sc_user_id = COALESCE(uploader_sc_user_id, $2)
              WHERE id = $1",
@@ -243,10 +242,6 @@ async fn maybe_auto_attach_sc_account(
     Ok(())
 }
 
-/// Если у одного SC user'а уже есть >= REUPLOAD_THRESHOLD треков, у которых
-/// primary_artist = этот же артист — это явный перезалив-канал. Привязываем
-/// его как `alt` (verified=false), чтобы sc_account_scan мог использовать
-/// этот аккаунт при поиске остальных треков артиста.
 const REUPLOAD_THRESHOLD: i64 = 3;
 
 async fn maybe_attach_reupload_account(

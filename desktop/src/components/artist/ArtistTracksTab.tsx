@@ -5,6 +5,7 @@ import { dur, fc } from '../../lib/formatters';
 import { Calendar, ListMusic, Loader2, Music } from '../../lib/icons';
 import type { Track } from '../../stores/player';
 import { VirtualList } from '../ui/VirtualList';
+import type { PlaybackContext } from '../../lib/playback-context';
 import { ThemedTrackRow } from '../user/ThemedTrackRow';
 import type { TracksSort } from './types';
 import { useArtistTracks } from './useArtistData';
@@ -85,6 +86,7 @@ function ArtistTracksTabImpl({
   const { t } = useTranslation();
   const query = useArtistTracks(artistId, role, sort);
   const tracks = query.data ?? [];
+  const playbackContext: PlaybackContext = { kind: 'artist', id: artistId };
   const { available, wanted } = useMemo(() => partition(tracks), [tracks]);
   const yearBuckets = useMemo(
     () => (view === 'years' ? groupByYear(available) : []),
@@ -113,9 +115,9 @@ function ArtistTracksTabImpl({
 
   if (tracks.length === 0) {
     return (
-      <div className="py-24 flex flex-col items-center gap-4">
+      <div className="py-24 flex flex-col items-center gap-2">
         <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center"
+          className="w-16 h-16 rounded-lg flex items-center justify-center"
           style={{
             background: 'rgba(255,255,255,0.03)',
             boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
@@ -123,7 +125,7 @@ function ArtistTracksTabImpl({
         >
           <Music size={24} className="text-white/15" />
         </div>
-        <p className="text-white/30 text-sm">
+        <p className="text-[#ffffff99] text-sm">
           {role === 'primary' ? t('artist.noTracks') : t('artist.noAppearances')}
         </p>
       </div>
@@ -143,7 +145,7 @@ function ArtistTracksTabImpl({
             />
             <ViewToggle view={view} onChange={onViewChange} aura={aura} />
           </div>
-          <span className="text-[11px] text-white/30 font-bold uppercase tracking-[0.18em] tabular-nums">
+          <span className="text-[11px] text-[#ffffff99] font-bold uppercase tracking-[0.18em] tabular-nums">
             {fc(tracks.length)} · {dur(totalDuration)}
             {view === 'years' && taggedYears > 0 && (
               <span className="ml-2 text-white/20">· {taggedYears} y</span>
@@ -160,7 +162,13 @@ function ArtistTracksTabImpl({
           className="flex flex-col gap-1"
           getItemKey={(track) => track.urn}
           renderItem={(track, i) => (
-            <ThemedTrackRow track={track} index={i} queue={available} aura={aura} />
+            <ThemedTrackRow
+              track={track}
+              index={i}
+              queue={available}
+              playbackContext={playbackContext}
+              aura={aura}
+            />
           )}
         />
       )}
@@ -172,6 +180,7 @@ function ArtistTracksTabImpl({
               key={bucket.year ?? `unknown-${idx}`}
               bucket={bucket}
               queue={yearsQueue}
+              artistId={artistId}
               aura={aura}
             />
           ))}
@@ -191,7 +200,7 @@ function ArtistTracksTabImpl({
             >
               {t('artist.comingSoon')}
             </span>
-            <span className="text-[11px] text-white/30 tabular-nums">{fc(wanted.length)}</span>
+            <span className="text-[11px] text-[#ffffff99] tabular-nums">{fc(wanted.length)}</span>
             <div className="flex-1 h-px bg-white/[0.05]" />
           </div>
           <div className="flex flex-col gap-1">
@@ -206,12 +215,22 @@ function ArtistTracksTabImpl({
 }
 
 const YearBlock = memo(
-  ({ bucket, queue, aura }: { bucket: YearBucket; queue: Track[]; aura: Aura }) => {
+  ({
+    bucket,
+    queue,
+    artistId,
+    aura,
+  }: {
+    bucket: YearBucket;
+    queue: Track[];
+    artistId: string;
+    aura: Aura;
+  }) => {
     const { t } = useTranslation();
     const total = bucket.items.reduce((acc, x) => acc + (x.duration ?? 0), 0);
     return (
       <div className="flex flex-col md:flex-row md:gap-8 gap-3">
-        {/* Year marker — same look as albums timeline */}
+        {}
         <div className="md:w-[200px] md:shrink-0 flex md:flex-col md:items-end items-center md:sticky md:top-24 self-start">
           <div className="flex items-baseline gap-3 md:flex-col md:items-end md:gap-1 min-w-0 max-w-full">
             <span
@@ -226,17 +245,24 @@ const YearBlock = memo(
             >
               {bucket.year ?? '∞'}
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/30 md:text-right whitespace-nowrap">
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ffffff99] md:text-right whitespace-nowrap">
               {bucket.year != null ? t('artist.releaseYear') : t('artist.unknownYear')} ·{' '}
               {bucket.items.length} · {dur(total)}
             </span>
           </div>
         </div>
 
-        {/* Tracks of the year */}
+        {}
         <div className="flex-1 min-w-0 flex flex-col gap-1">
           {bucket.items.map((track, i) => (
-            <ThemedTrackRow key={track.urn} track={track} index={i} queue={queue} aura={aura} />
+            <ThemedTrackRow
+              key={track.urn}
+              track={track}
+              index={i}
+              queue={queue}
+              playbackContext={{ kind: 'artist', id: artistId }}
+              aura={aura}
+            />
           ))}
         </div>
       </div>
@@ -263,12 +289,10 @@ const SortToggle = memo(
     ];
     return (
       <div
-        className={`inline-flex items-center gap-1 p-1 rounded-2xl transition-opacity ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
+        className={`inline-flex items-center gap-1 p-1 rounded-lg transition-opacity ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
         style={{
           background: 'rgba(255,255,255,0.03)',
           boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
         }}
       >
         {options.map((o) => {
@@ -279,7 +303,7 @@ const SortToggle = memo(
               type="button"
               onClick={() => onChange(o.id)}
               className={`relative px-4 h-8 rounded-xl text-[12px] font-semibold cursor-pointer transition-all ${
-                active ? 'text-white' : 'text-white/40 hover:text-white/70'
+                active ? 'text-white' : 'text-[#ffffff99] hover:text-[#ffffff99]'
               }`}
               style={
                 active
@@ -324,12 +348,10 @@ const ViewToggle = memo(
     ];
     return (
       <div
-        className="inline-flex items-center gap-1 p-1 rounded-2xl"
+        className="inline-flex items-center gap-1 p-1 rounded-lg"
         style={{
           background: 'rgba(255,255,255,0.03)',
           boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
         }}
       >
         {options.map((o) => {
@@ -340,7 +362,7 @@ const ViewToggle = memo(
               type="button"
               onClick={() => onChange(o.id)}
               className={`relative inline-flex items-center gap-1.5 px-3 h-8 rounded-xl text-[12px] font-semibold cursor-pointer transition-all ${
-                active ? 'text-white' : 'text-white/40 hover:text-white/70'
+                active ? 'text-white' : 'text-[#ffffff99] hover:text-[#ffffff99]'
               }`}
               style={
                 active
@@ -363,7 +385,7 @@ const ViewToggle = memo(
 
 const WantedRow = memo(({ track, index }: { track: Track; index: number }) => (
   <div
-    className="flex items-center gap-4 px-4 py-2.5 rounded-2xl opacity-50"
+    className="flex items-center gap-2 px-4 py-2.5 rounded-lg opacity-50"
     style={{ background: 'rgba(255,255,255,0.015)' }}
   >
     <div className="w-10 h-10 flex items-center justify-center shrink-0">
@@ -379,11 +401,11 @@ const WantedRow = memo(({ track, index }: { track: Track; index: number }) => (
       <Music size={16} className="text-white/20" />
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-[13px] font-medium text-white/55 truncate">{track.title}</p>
-      <p className="text-[11px] text-white/25 truncate">{track.user?.username}</p>
+      <p className="text-[13px] font-medium text-[#ffffff99] truncate">{track.title}</p>
+      <p className="text-[11px] text-[#ffffff99] truncate">{track.user?.username}</p>
     </div>
     {track.enrichment?.release_year && (
-      <span className="text-[11px] text-white/25 tabular-nums shrink-0">
+      <span className="text-[11px] text-[#ffffff99] tabular-nums shrink-0">
         {track.enrichment.release_year}
       </span>
     )}

@@ -25,9 +25,6 @@ pub fn proxy_url() -> Option<String> {
     DESYNC.get().map(|d| d.proxy_url())
 }
 
-/// Привязывает SOCKS-десинк к билдеру reqwest. Если sneak не поднялся —
-/// возвращает билдер как есть. Сам тумблер enable/disable рулит уже SOCKS
-/// внутри, поэтому клиент не нужно пересоздавать при переключении.
 pub fn apply(b: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
     match proxy_url().and_then(|u| reqwest::Proxy::all(u).ok()) {
         Some(p) => b.proxy(p),

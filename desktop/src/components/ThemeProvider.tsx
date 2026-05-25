@@ -24,7 +24,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty('--color-accent-hover', hover);
     root.style.setProperty('--color-accent-glow', `rgba(${rgb}, 0.2)`);
     root.style.setProperty('--color-accent-selection', `rgba(${rgb}, 0.3)`);
-    // Contrast: black text on light accent, white on dark
+    
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
     root.style.setProperty('--color-accent-contrast', lum > 160 ? '#000000' : '#ffffff');
   }, [accentColor]);

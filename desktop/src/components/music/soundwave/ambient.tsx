@@ -1,19 +1,19 @@
 import React, { useMemo } from 'react';
 
 interface Props {
-  /** Number of drifting accent particles. Fewer on smaller blocks. */
+  
   particleCount?: number;
-  /** Max blur radius for aurora orbs. Lower = cheaper GPU paint. */
+  
   blur?: number;
-  /** Primary aurora opacity. */
+  
   intensity?: number;
 }
 
-/**
- * Decorative aurora + particle layer for SoundWave blocks.
- * Pure CSS animations, `contain: strict` isolates repaints, no React updates
- * during animation.
- */
+
+
+
+
+
 export const AmbientLayer = React.memo(function AmbientLayer({
   particleCount = 12,
   blur = 45,

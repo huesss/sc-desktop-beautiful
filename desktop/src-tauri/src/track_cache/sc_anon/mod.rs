@@ -1,9 +1,4 @@
-//! Direct anon download from the SoundCloud public API v2.
-//!
-//! Mirrors the streaming server's `anon` flow but performs every request
-//! straight from the user's machine — no proxy hops. Used as a fallback
-//! between local storage and the streaming server: if the user can reach
-//! SoundCloud directly, we save a round trip to our infra.
+
 
 pub(super) mod hls;
 
@@ -24,12 +19,8 @@ const SC_API_V2: &str = "https://api-v2.soundcloud.com";
 const SC_USER_AGENT: &str =
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
-/// Preset preference: progressive first (one GET, no chunk failures), then
-/// HLS by preset preference.
 const PRESET_ORDER: &[&str] = &["mp3_1_0", "aac_160k", "opus_0_0", "abr_sq"];
 
-/// Circuit breaker: trip after this many consecutive network failures so users
-/// behind a regulator that blocks SC don't pay 1.5s connect-timeout per track.
 const FAIL_THRESHOLD: u8 = 3;
 const COOLDOWN_SECS: u64 = 300;
 const CLIENT_ID_MIN_REFRESH: Duration = Duration::from_secs(30);
@@ -70,14 +61,10 @@ struct TranscodingResolveResponse {
     url: String,
 }
 
-/// Successful download from SC anon API.
 pub struct AnonStreamResult {
     pub data: Bytes,
 }
 
-/// Caches a public `client_id` extracted from soundcloud.com homepage hydration.
-/// Includes a circuit breaker so users with SC blocked don't eat connect-timeouts
-/// on every track.
 pub struct AnonClient {
     client: Client,
     client_id: Arc<RwLock<Option<String>>>,
@@ -136,10 +123,6 @@ impl AnonClient {
         }
     }
 
-    /// Fetch the full audio bytes for a track URN.
-    /// Returns `Ok(None)` if SC has no usable transcoding (geo-blocked,
-    /// preview-only, etc.) so the caller can fall through to the next source.
-    /// `Err` is reserved for network failures and feeds the circuit breaker.
     pub async fn get_stream(&self, track_urn: &str) -> Result<Option<AnonStreamResult>, String> {
         if self.in_cooldown() {
             return Ok(None);
@@ -167,7 +150,6 @@ impl AnonClient {
         let mut track_auth = track.track_authorization.clone();
         let transcodings = track.media.as_ref().and_then(|m| m.transcodings.as_ref());
 
-        // No transcodings? refresh client_id once and retry the lookup.
         let transcodings_owned;
         let transcodings: &[Transcoding] = match transcodings {
             Some(t) if !t.is_empty() => t.as_slice(),
@@ -244,8 +226,7 @@ impl AnonClient {
         }
 
         let mut last_err: Option<String> = None;
-        // 404 on every transcoding = restricted track, not stale client_id:
-        // return None so the caller stops refreshing+retrying.
+
         let mut only_resource_gone = true;
         for t in ranked {
             let is_progressive =
@@ -400,8 +381,6 @@ impl AnonClient {
     }
 }
 
-/// Drop previews/snipped/restricted, then rank: progressive first, then HLS,
-/// each ordered by preset preference.
 fn ranked_transcodings(transcodings: &[Transcoding]) -> Vec<&Transcoding> {
     let candidates: Vec<&Transcoding> = transcodings
         .iter()
@@ -455,7 +434,6 @@ fn ranked_transcodings(transcodings: &[Transcoding]) -> Vec<&Transcoding> {
     ordered
 }
 
-/// Pull `client_id` out of `window.__sc_hydration` on the SC homepage.
 fn extract_client_id_from_hydration(html: &str) -> Option<String> {
     static PATTERN: &str =
         r#""hydratable"\s*:\s*"apiClient"\s*,\s*"data"\s*:\s*\{\s*"id"\s*:\s*"([^"]+)""#;
@@ -507,7 +485,7 @@ mod tests {
             build_transcoding_target(PROGRESSIVE_URL, "CID", Some("")),
             build_transcoding_target(PROGRESSIVE_URL, "CID", None),
         );
-        // Correct separator when the URL already has a query.
+
         assert_eq!(
             build_transcoding_target("https://x/stream/progressive?foo=1", "CID", Some("A")),
             "https://x/stream/progressive?foo=1&client_id=CID&track_authorization=A",

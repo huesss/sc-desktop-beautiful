@@ -60,11 +60,11 @@ function truncate(value: string, max = 500) {
   return value.length > max ? `${value.slice(0, max)}...[+${value.length - max}]` : value;
 }
 
-// Транспортные ошибки (@tauri-apps/plugin-http → reqwest) приходят одним
-// плоским Error: верхний Display вида "error sending request for url (...)",
-// а реальная причина (timeout / dns / connection refused / tcp connect)
-// спрятана в source()-цепочке, которую плагин частично прокидывает в .cause.
-// String(error) её теряет — поэтому разворачиваем имя + всю cause-цепочку.
+
+
+
+
+
 export function describeError(error: unknown): string {
   if (!(error instanceof Error)) return truncate(String(error));
 
@@ -79,8 +79,7 @@ export function describeError(error: unknown): string {
   }
   if (cur != null && !(cur instanceof Error)) parts.push(String(cur));
 
-  // AbortError = сработал наш клиентский таймаут (см. fetchWithTimeout),
-  // а не отказ сети. Это меняет диагноз, поэтому помечаем явно.
+
   if (error.name === 'AbortError') parts.push('(client-timeout: our AbortController fired)');
 
   return truncate(parts.join(' -> '));

@@ -1,23 +1,32 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
 @import "tailwindcss";
+@config "../tailwind.config.js";
+@import "./styles/ui.css";
 
 @theme {
-  --color-bg-primary: rgba(10, 10, 12, 0.95);
+  --color-main: #0a0a0a;
+  --color-secondary: #141414;
+  --color-bg-primary: #0a0a0a;
   --color-bg-glass: rgba(255, 255, 255, 0.03);
-  --color-bg-glass-hover: rgba(255, 255, 255, 0.06);
-  --color-bg-glass-active: rgba(255, 255, 255, 0.09);
-  --color-border-glass: rgba(255, 255, 255, 0.06);
-  --color-border-glass-hi: rgba(255, 255, 255, 0.12);
-  --color-text-primary: rgba(255, 255, 255, 0.92);
-  --color-text-secondary: rgba(255, 255, 255, 0.55);
-  --color-text-tertiary: rgba(255, 255, 255, 0.25);
-  --color-accent: #ff5500;
-  --color-accent-hover: #ff6a1a;
-  --color-accent-glow: rgba(255, 85, 0, 0.2);
-  --color-accent-selection: rgba(255, 85, 0, 0.3);
+  --color-bg-glass-hover: rgba(255, 255, 255, 0.05);
+  --color-bg-glass-active: rgba(255, 255, 255, 0.1);
+  --color-border-glass: rgba(255, 255, 255, 0.1);
+  --color-border-glass-hi: rgba(255, 255, 255, 0.1);
+  --color-text-primary: #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.5);
+  --color-text-tertiary: rgba(255, 255, 255, 0.4);
+  --color-text-muted-50: rgba(255, 255, 255, 0.5);
+  --color-text-muted-60: rgba(255, 255, 255, 0.6);
+  --color-accent: #00a843;
+  --color-accent-hover: #00b84a;
+  --color-accent-glow: rgba(0, 168, 67, 0.2);
+  --color-accent-selection: rgba(0, 168, 67, 0.3);
   --color-accent-contrast: #ffffff;
 
   --font-sans: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-btn-inset: 0px -1px 0px 0px rgba(0, 0, 0, 0.2) inset,
+    0px 1px 0px 0px rgba(255, 255, 255, 0.1) inset;
 }
 
 *,
@@ -42,11 +51,25 @@ body,
 }
 
 #root {
-  background: rgb(8, 8, 10);
+  background: #0a0a0a;
   overflow: hidden;
 }
 
-/* ── Scrollbar ─────────────────────────────────────────────── */
+.titlebar-drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+[data-no-drag] {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.font-inter {
+  font-family: "Inter", sans-serif;
+}
+
+
 ::-webkit-scrollbar {
   width: 5px;
 }
@@ -64,24 +87,48 @@ body,
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* ── Glass ──────────────────────────────────────────────────── */
-.glass {
-  background: rgba(255, 255, 255, 0.025);
-  backdrop-filter: blur(40px) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+
+.panel,
+.glass,
+.glass-flat,
+.glass-featured {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0a0a0a;
+  border-radius: 0.5rem;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.panel-secondary {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #141414;
+  border-radius: 0.375rem;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  box-shadow: var(--shadow-btn-inset);
+  transition: filter 150ms ease, transform 150ms ease;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.15);
+}
+
+.btn-primary:active {
+  transform: scale(0.975);
 }
 
 .glass-hover:hover {
   background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .glass-flat {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
 }
 
-/* ── Shimmer ───────────────────────────────────────────────── */
+
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
@@ -96,7 +143,7 @@ body,
   .skeleton-shimmer { animation: none; }
 }
 
-/* ── Scrollbar hide ────────────────────────────────────────── */
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -106,13 +153,13 @@ body,
   scrollbar-width: none;
 }
 
-/* ── Selection ─────────────────────────────────────────────── */
+
 ::selection {
   background: var(--color-accent-selection);
   color: white;
 }
 
-/* ── Focus reset ───────────────────────────────────────────── */
+
 :focus {
   outline: none;
 }
@@ -123,7 +170,12 @@ body,
   border-radius: 8px;
 }
 
-/* ── Feed animations ──────────────────────────────────────── */
+[data-top-search-input]:focus,
+[data-top-search-input]:focus-visible {
+  outline: none;
+}
+
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -140,25 +192,12 @@ body,
 }
 
 .hero-greeting {
-  color: rgba(255, 255, 255, 0.96);
+  color: #ffffff;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-@supports ((-webkit-background-clip: text) or (background-clip: text)) {
-  .hero-greeting {
-    background-image: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 1),
-      rgba(255, 255, 255, 0.8),
-      rgba(255, 85, 0, 0.8)
-    );
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-  }
-}
 
-/* ── Dialog animations (Radix data-state) ────────────────── */
 @keyframes dialogOverlayIn {
   from {
     opacity: 0;
@@ -209,22 +248,11 @@ body,
   animation: dialogContentOut 0.15s var(--ease-apple) forwards;
 }
 
-/* ── Featured card glass ──────────────────────────────────── */
-.glass-featured {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(60px) saturate(2);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
-    0 8px 40px rgba(0, 0, 0, 0.3);
-}
-
 .glass-featured:hover {
-  background: rgba(255, 255, 255, 0.035);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: #141414;
 }
 
-/* ── Synced lyrics lines ─────────────────────────────────── */
+
 .lyric-line {
   cursor: pointer;
   padding: 10px 0;
@@ -244,8 +272,6 @@ body,
     filter 0.45s var(--ease-apple);
   -webkit-font-smoothing: antialiased;
   filter: drop-shadow(0 0 0 transparent);
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 .lyric-line[data-state="active"] {
@@ -279,7 +305,7 @@ body,
   transform: scale(0.968) translate3d(12px, 0, 0);
 }
 
-/* ── Lyrics pause marker (♪♪♪) ─────────────────────────── */
+
 .lyric-pause {
   cursor: default;
   display: flex;
@@ -365,7 +391,7 @@ body,
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.08));
 }
 
-/* ── Active-line karaoke fill — driven by --lyric-progress (rAF) ── */
+
 .lyric-fill {
   position: relative;
   display: inline-block;
@@ -375,14 +401,14 @@ body,
   color: rgba(255, 255, 255, 0.32);
 }
 
-/* A "word" wrapper just keeps characters from breaking mid-word. */
+
 .lyric-word {
   display: inline-block;
   white-space: nowrap;
 }
 
-/* Per-character animated highlight driven by rAF.
-   --char-progress 0..1 sweeps left-to-right across the active line. */
+
+
 .lyric-char {
   display: inline-block;
   position: relative;
@@ -402,7 +428,7 @@ body,
   will-change: color, text-shadow, transform;
 }
 
-/* Past line — all chars fully lit */
+
 .lyric-line[data-state="past"] .lyric-char,
 .lyric-line[data-state="past-near"] .lyric-char {
   color: rgba(255, 255, 255, 1);
@@ -410,7 +436,7 @@ body,
   transform: none;
 }
 
-/* Next line — fully dim */
+
 .lyric-line[data-state="next"] .lyric-char,
 .lyric-line[data-state="next-near"] .lyric-char {
   color: rgba(255, 255, 255, 0.3);
@@ -418,12 +444,12 @@ body,
   transform: none;
 }
 
-/* Pause: kill micro-transitions while frozen */
+
 .lyrics-paused .lyric-line[data-state="active"] .lyric-char {
   transition-duration: 0ms;
 }
 
-/* ── Artwork zoom-in modal ─────────────────────────────────── */
+
 @keyframes zoomIn {
   from {
     opacity: 0;
@@ -439,7 +465,7 @@ body,
   animation: zoomIn 0.4s var(--ease-apple) both;
 }
 
-/* ── Star modal scroll ──────────────────────────────────────── */
+
 .star-scroll {
   mask-image: linear-gradient(
     to bottom,
@@ -470,7 +496,7 @@ body,
   background: rgba(168, 85, 247, 0.4);
 }
 
-/* ── Star subscription particles ────────────────────────────── */
+
 @keyframes star-float {
   from {
     transform: translateY(0) scale(1);
@@ -482,7 +508,7 @@ body,
   }
 }
 
-/* ── SoundWave hero block ──────────────────────────────────── */
+
 @keyframes sw-bar {
   0%,
   100% {
@@ -493,9 +519,9 @@ body,
   }
 }
 
-/* Particle drift — translate+opacity only (no scale). Scale on ~20 elements
-   forces relayout of their composite rect every frame; pure translate stays
-   on the GPU compositor. */
+
+
+
 @keyframes sw-drift {
   0% {
     transform: translate3d(0, 0, 0);
@@ -510,9 +536,9 @@ body,
   }
 }
 
-/* Aurora orbs carry a heavy `filter: blur()`; rotate/scale would force the
-   blur kernel to recompute every frame (huge GPU cost). Stick to translate —
-   that's a cheap composite transform, blur result stays cached. */
+
+
+
 @keyframes sw-aurora {
   0%,
   100% {
@@ -549,9 +575,9 @@ body,
   will-change: transform;
 }
 
-/* Progress-based waveform: two stacked bar layers, the accent one clipped
-   by --sw-progress (0%–100%). Only the clip-path changes at runtime — GPU
-   composite-only, zero layout, zero React re-renders during playback. */
+
+
+
 .sw-bars {
   --sw-progress: 0%;
 }

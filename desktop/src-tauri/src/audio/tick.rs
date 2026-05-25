@@ -73,7 +73,6 @@ pub fn start_tick_emitter(app: &AppHandle) {
                             continue;
                         }
 
-                        // Backward seek detected — reset stall tracking
                         if pos_ms < last_pos_ms.saturating_sub(500) {
                             last_pos_ms = pos_ms;
                             last_progress_at = now;
@@ -93,9 +92,7 @@ pub fn start_tick_emitter(app: &AppHandle) {
                                 "WARN",
                                 "[Audio] Stall detected, reconnecting audio device",
                             );
-                            // Reconnect device — stall often means the audio stream
-                            // died silently (macOS sleep/wake, headphone unplug).
-                            // Just reloading the track on a dead mixer won't help.
+
                             state.audio_tx.send(AudioThreadCmd::Reconnect).ok();
                             stall_cooldown_until = std::time::Instant::now()
                                 + Duration::from_millis(STALL_COOLDOWN_MS);

@@ -1,12 +1,4 @@
-//! Internal pipeline endpoint — только для backend'а.
-//!
-//! `POST /internal/transcode-upload/:track_urn` — Bearer=INTERNAL_TOKEN.
-//!
-//! 1. Проверяет, что файл уже есть в storage (HEAD) — возвращает стабильный redirect-URL.
-//! 2. Иначе: качает трек (cookies HQ → oauth HQ → oauth SQ → anon), НЕ зависит от premium-only.
-//! 3. Заливает в storage через multipart /upload (storage транскодит в один AAC m4a).
-//! 4. Возвращает `{ url }` вида `{storage}/redirect/{file}.m4a`. В S3-режиме storage
-//!    пересчитывает presigned, в Gdrive — public link, в local — стримит сам.
+
 
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -46,7 +38,6 @@ pub async fn transcode_upload(
     let head_url = format!("{storage_base}/{key}");
     let redirect_url = format!("{storage_base}/redirect/{key}");
 
-    // 1. Уже лежит в storage → сразу отдаём стабильный redirect-URL.
     if head_ok(&state.http_client, &head_url).await {
         info!("[internal/transcode-upload] {track_urn} already in storage");
         return Ok(Json(TranscodeUploadResponse {
@@ -56,8 +47,6 @@ pub async fn transcode_upload(
         }));
     }
 
-    // 2. Качаем: HQ cookies → HQ oauth → SQ oauth → SQ cookies → anon.
-    //    Если упали, но файл параллельно появился в storage — не считаем ошибкой.
     let data = match fetch_track(&state, &track_urn).await {
         Some(d) => d,
         None => {
@@ -75,8 +64,6 @@ pub async fn transcode_upload(
         }
     };
 
-    // 3. Заливаем в storage (multipart). Storage транскодит в один AAC m4a.
-    //    Если upload вернул ошибку, но файл уже лежит (гонка/повторный запрос) — ок.
     let upload_base = state.config.storage_upload_url.trim_end_matches('/');
     if let Err(e) = upload_to_storage(
         &state.http_client,
@@ -141,8 +128,6 @@ async fn head_ok(client: &Client, url: &str) -> bool {
     }
 }
 
-/// Cascade: cookies(HQ) → oauth(HQ) → oauth(SQ) → cookies(SQ) → anon.
-/// OAuth здесь не используется (нет сессии) — только анонимные/cookies пути.
 async fn fetch_track(state: &AppState, track_urn: &str) -> Option<Bytes> {
     let tag = "[internal/fetch]";
 

@@ -10,7 +10,7 @@ import { useArtistDisplay, useDisplayTitle } from '../../lib/track-display';
 import { usePlayerStore } from '../../stores/player';
 import { UploadKindDot } from './UploadKindDot';
 
-/* ── Now Playing (single, non-draggable) ─────────────────────────── */
+
 const NowPlayingItem = React.memo(() => {
   const { currentTrack, isPlaying } = usePlayerStore(
     useShallow((s) => ({
@@ -29,10 +29,10 @@ const NowPlayingItem = React.memo(() => {
 
   return (
     <div
-      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.08] ring-1 ring-white/[0.08] cursor-pointer"
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.08] ring-1 ring-white/10 cursor-pointer"
       onClick={handleClick}
     >
-      <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 relative bg-white/[0.04]">
+      <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 relative bg-[#141414]">
         {artwork ? (
           <img src={artwork} alt="" className="w-full h-full object-cover" decoding="async" />
         ) : (
@@ -54,7 +54,7 @@ const NowPlayingItem = React.memo(() => {
         <p className="text-[12px] text-accent font-medium truncate leading-snug">
           {currentTrack.title}
         </p>
-        <p className="text-[10px] text-white/30 truncate mt-0.5">{currentTrack.user.username}</p>
+        <p className="text-[10px] text-[#ffffff99] truncate mt-0.5">{currentTrack.user.username}</p>
       </div>
       <span className="text-[10px] text-white/20 tabular-nums shrink-0">
         {dur(currentTrack.duration)}
@@ -63,7 +63,7 @@ const NowPlayingItem = React.memo(() => {
   );
 });
 
-/* ── Draggable queue list ────────────────────────────────────────── */
+
 const QueueRow = React.memo(function QueueRow({
   track,
   absIdx,
@@ -99,12 +99,12 @@ const QueueRow = React.memo(function QueueRow({
         isDragging
           ? 'opacity-40 scale-[0.97]'
           : isCurrent
-            ? 'bg-white/[0.08] ring-1 ring-white/[0.08]'
-            : 'hover:bg-white/[0.04]'
+            ? 'bg-white/[0.08] ring-1 ring-white/10'
+            : 'hover:bg-[#141414]'
       }`}
     >
       <div
-        className="text-white/15 group-hover:text-white/30 hover:!text-white/50 cursor-grab active:cursor-grabbing transition-colors touch-none"
+        className="text-white/15 group-hover:text-[#ffffff99] hover:!text-[#ffffff99] cursor-grab active:cursor-grabbing transition-colors touch-none"
         {...attributes}
         {...listeners}
       >
@@ -112,7 +112,7 @@ const QueueRow = React.memo(function QueueRow({
       </div>
 
       <div
-        className="w-9 h-9 rounded-lg overflow-hidden shrink-0 relative bg-white/[0.04] cursor-pointer"
+        className="w-9 h-9 rounded-lg overflow-hidden shrink-0 relative bg-[#141414] cursor-pointer"
         onClick={handleClick}
       >
         {artwork ? (
@@ -145,7 +145,7 @@ const QueueRow = React.memo(function QueueRow({
           e.stopPropagation();
           handleRemove();
         }}
-        className="w-6 h-6 rounded-md flex items-center justify-center text-white/0 group-hover:text-white/20 hover:!text-white/50 hover:!bg-white/[0.06] transition-all duration-150 cursor-pointer shrink-0"
+        className="w-6 h-6 rounded-md flex items-center justify-center text-white/0 group-hover:text-white/20 hover:!text-[#ffffff99] hover:!bg-white/[0.06] transition-all duration-150 cursor-pointer shrink-0"
       >
         <X size={12} />
       </button>
@@ -167,11 +167,11 @@ const QueueTrackRowBody = React.memo(function QueueTrackRowBody({
   return (
     <div className="flex-1 min-w-0 cursor-pointer" onClick={onClick}>
       <p
-        className={`text-[12px] truncate leading-snug ${isCurrent ? 'text-accent font-medium' : 'text-white/80'}`}
+        className={`text-[12px] truncate leading-snug ${isCurrent ? 'text-accent font-medium' : 'text-[#ffffff99]'}`}
       >
         {displayTitle}
       </p>
-      <p className="text-[10px] text-white/30 truncate mt-0.5 flex items-center gap-1">
+      <p className="text-[10px] text-[#ffffff99] truncate mt-0.5 flex items-center gap-1">
         <UploadKindDot kind={artistDisplay.uploadKind} />
         <span className="truncate">{artistDisplay.primary}</span>
       </p>
@@ -209,7 +209,7 @@ const DraggableQueue = React.memo(({ startIndex }: { startIndex: number }) => {
   );
 });
 
-/* ── Panel ───────────────────────────────────────────────────────── */
+
 export const QueuePanel = React.memo(
   ({ open, onClose }: { open: boolean; onClose: () => void }) => {
     const { t } = useTranslation();
@@ -225,27 +225,26 @@ export const QueuePanel = React.memo(
 
     return (
       <>
-        {/* Backdrop */}
+        {}
         <div
-          className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300 ${
+          className={`fixed inset-0 bg-black/40 z-40 transition-opacity duration-300 ${
             open ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           onClick={onClose}
         />
 
-        {/* Panel */}
+        {}
         <div
           className="fixed top-0 right-0 bottom-0 w-[360px] z-50 flex flex-col"
           style={{
             background: 'rgba(18, 18, 20, 0.88)',
-            backdropFilter: 'blur(60px) saturate(1.8)',
             borderLeft: '1px solid rgba(255,255,255,0.06)',
             transform: open ? 'translateX(0)' : 'translateX(100%)',
             visibility: open ? 'visible' : 'hidden',
             transition: 'transform 300ms cubic-bezier(0.16, 1, 0.3, 1), visibility 300ms',
           }}
         >
-          {/* Header */}
+          {}
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
             <h2 className="text-base font-semibold tracking-tight">{t('player.queue')}</h2>
             <div className="flex items-center gap-1">
@@ -253,7 +252,7 @@ export const QueuePanel = React.memo(
                 <button
                   type="button"
                   onClick={() => usePlayerStore.getState().clearQueue()}
-                  className="h-7 px-2.5 rounded-lg text-[11px] text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all duration-150 cursor-pointer flex items-center gap-1.5"
+                  className="h-7 px-2.5 rounded-lg text-[11px] text-[#ffffff99] hover:text-[#ffffff99] hover:bg-white/5 transition-all duration-150 cursor-pointer flex items-center gap-1.5"
                 >
                   <Trash2 size={12} />
                   {t('player.clearQueue')}
@@ -262,28 +261,28 @@ export const QueuePanel = React.memo(
               <button
                 type="button"
                 onClick={onClose}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all duration-150 cursor-pointer"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#ffffff99] hover:text-[#ffffff99] hover:bg-white/5 transition-all duration-150 cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
           </div>
 
-          {/* Now Playing (single item, not draggable) */}
+          {}
           {currentTrack && (
             <div className="px-4 pb-2">
-              <p className="text-[10px] text-white/25 uppercase tracking-wider font-medium mb-2 px-1">
+              <p className="text-[10px] text-[#ffffff99] uppercase tracking-wider font-medium mb-2 px-1">
                 {t('player.nowPlaying')}
               </p>
               <NowPlayingItem />
             </div>
           )}
 
-          {/* Up Next (draggable) */}
+          {}
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             {upNextCount > 0 && (
               <>
-                <p className="text-[10px] text-white/25 uppercase tracking-wider font-medium mb-2 mt-3 px-1">
+                <p className="text-[10px] text-[#ffffff99] uppercase tracking-wider font-medium mb-2 mt-3 px-1">
                   {t('player.upNext')} · {upNextCount}
                 </p>
                 <DraggableQueue startIndex={queueIndex + 1} />

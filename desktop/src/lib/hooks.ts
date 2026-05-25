@@ -11,10 +11,14 @@ import {
 import { useEffect, useMemo, useRef } from 'react';
 import type { Track } from '../stores/player';
 import { api } from './api';
+import { searchApi } from './search-throttle';
+import { LOCAL_PREMIUM_UNLOCK } from './constants';
 import { initLikedUrns } from './likes';
 import { rememberLikedTracks, rememberTracks } from './offline-index';
+import { refreshPlaylistListCaches } from './playlist-cache';
+import { markPlaylistDead } from './playlist-dead-registry';
 
-/* ── Types ─────────────────────────────────────────────────────── */
+
 
 export type FeedOrigin = Track & {
   track_count?: number;
@@ -127,10 +131,10 @@ export interface WebProfile {
 
 const SHORT_CACHE_MS = 1000 * 60 * 2;
 const MEDIUM_CACHE_MS = 1000 * 60 * 5;
-const SEARCH_CACHE_MS = 1000 * 60 * 2;
+const SEARCH_CACHE_MS = 1000 * 60 * 30;
 const INFINITE_GC_MS = 1000 * 60 * 3;
 
-/* ── Helpers ───────────────────────────────────────────────────── */
+
 
 function flattenCollectionPages<T>(pages: Array<{ collection: T[] }> | undefined): T[] {
   if (!pages) return [];
@@ -158,16 +162,29 @@ export function dedupeByUrn<T extends { urn: string }>(items: T[]): T[] {
   return dedupeByKey(items, (item) => item.urn);
 }
 
+type PlaylistTrackEntry = Track & { track?: Track };
+
+export function normalizePlaylistTracks(items: Track[]): Track[] {
+  const out: Track[] = [];
+  for (const raw of items) {
+    const entry = raw as PlaylistTrackEntry;
+    const track =
+      entry.urn && entry.title != null ? entry : entry.track?.urn ? entry.track : null;
+    if (track?.urn) out.push(track);
+  }
+  return dedupeByUrn(out);
+}
+
 interface PagedQueryOptions<T> {
   queryKey: QueryKey;
-  /** Builds the URL for a given page index. limit and page are appended automatically. */
+  
   url: (page: number, limit: number) => string;
   limit?: number;
   staleTime?: number;
   gcTime?: number;
   enabled?: boolean;
   maxPages?: number;
-  /** Auto-fetch all pages until exhausted. Use sparingly. */
+  
   autoFetchAll?: boolean;
   dedupe?: (item: T) => string;
 }
@@ -177,12 +194,17 @@ type PagedQueryResult<T> = UseInfiniteQueryResult<
   DefaultError
 > & { items: T[] };
 
-/**
- * Унифицированный page-based useInfiniteQuery helper. Бэк отдаёт
- * { collection, page, page_size, has_more } — этого достаточно для пагинации.
- */
-function usePagedQuery<T>(opts: PagedQueryOptions<T>): PagedQueryResult<T> {
+
+
+
+
+function usePagedQuery<T>(
+  opts: PagedQueryOptions<T> & { searchThrottle?: boolean },
+): PagedQueryResult<T> {
   const limit = opts.limit ?? 30;
+  const fetchPage = opts.searchThrottle
+    ? (pageParam: number) => searchApi<PagedResponse<T>>(opts.url(pageParam, limit))
+    : (pageParam: number) => api<PagedResponse<T>>(opts.url(pageParam, limit));
   const query = useInfiniteQuery<
     PagedResponse<T>,
     DefaultError,
@@ -191,7 +213,7 @@ function usePagedQuery<T>(opts: PagedQueryOptions<T>): PagedQueryResult<T> {
     number
   >({
     queryKey: opts.queryKey,
-    queryFn: ({ pageParam }) => api<PagedResponse<T>>(opts.url(pageParam, limit)),
+    queryFn: ({ pageParam }) => fetchPage(pageParam),
     initialPageParam: 0,
     getNextPageParam: (last) => (last.has_more ? last.page + 1 : undefined),
     staleTime: opts.staleTime,
@@ -200,7 +222,7 @@ function usePagedQuery<T>(opts: PagedQueryOptions<T>): PagedQueryResult<T> {
     enabled: opts.enabled,
   });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: opts.autoFetchAll is stable, query is captured
+  
   useEffect(() => {
     if (!opts.autoFetchAll) return;
     if (query.hasNextPage && !query.isFetchingNextPage) {
@@ -222,7 +244,7 @@ function pagedUrl(base: string, page: number, limit: number, extra?: string): st
   return `${base}${sep}${params}`;
 }
 
-/* ── History ───────────────────────────────────────────────────── */
+
 
 export interface HistoryEntry {
   id: string;
@@ -258,7 +280,7 @@ export function useHistory(limit = 50) {
   return { entries, ...query };
 }
 
-/* ── Featured ─────────────────────────────────────────────────── */
+
 
 export interface FeaturedResponse {
   type: 'track' | 'playlist' | 'user';
@@ -273,7 +295,7 @@ export function useFeatured() {
   });
 }
 
-/* ── Feed ──────────────────────────────────────────────────────── */
+
 
 export function useFeed() {
   const query = usePagedQuery<FeedItem>({
@@ -294,7 +316,7 @@ export function useFeed() {
   };
 }
 
-/* ── Liked tracks ──────────────────────────────────────────────── */
+
 
 export function useLikedTracks(limit = 30) {
   const query = usePagedQuery<Track>({
@@ -318,10 +340,10 @@ export function useLikedTracks(limit = 30) {
   return { tracks, ...query };
 }
 
-/**
- * Fetch ALL liked tracks. Page-based pagination, shared promise.
- * Optional onPage callback fires per page during the fetch.
- */
+
+
+
+
 let _allLikesPromise: Promise<Track[]> | null = null;
 
 export function fetchAllLikedTracks(
@@ -357,7 +379,7 @@ export function invalidateAllLikesCache() {
   _allLikesPromise = null;
 }
 
-/* ── Fresh from followed artists ───────────────────────────────── */
+
 
 export function useFollowingTracks(limit = 20) {
   return useQuery({
@@ -368,7 +390,7 @@ export function useFollowingTracks(limit = 20) {
   });
 }
 
-/* ── Track Comments (infinite) ─────────────────────────────────── */
+
 
 export function useTrackComments(trackUrn: string | undefined) {
   const query = usePagedQuery<Comment>({
@@ -384,7 +406,7 @@ export function useTrackComments(trackUrn: string | undefined) {
   return { comments: query.items, ...query };
 }
 
-/* ── Post Comment ─────────────────────────────────────────────── */
+
 
 export function usePostComment(trackUrn: string | undefined) {
   const qc = useQueryClient();
@@ -404,7 +426,7 @@ export function usePostComment(trackUrn: string | undefined) {
   });
 }
 
-/* ── Related Tracks ───────────────────────────────────────────── */
+
 
 export function useRelatedTracks(trackUrn: string | undefined, limit = 10) {
   return useQuery({
@@ -417,7 +439,7 @@ export function useRelatedTracks(trackUrn: string | undefined, limit = 10) {
   });
 }
 
-/* ── Track Favoriters ─────────────────────────────────────────── */
+
 
 export function useTrackFavoriters(trackUrn: string | undefined, limit = 12) {
   return useQuery({
@@ -432,35 +454,45 @@ export function useTrackFavoriters(trackUrn: string | undefined, limit = 12) {
   });
 }
 
-/* ── Playlist Detail ──────────────────────────────────────────── */
+
 
 export function usePlaylist(playlistUrn: string | undefined) {
   return useQuery({
     queryKey: ['playlist', playlistUrn],
-    queryFn: () => api<Playlist>(`/playlists/${encodeURIComponent(playlistUrn!)}`),
+    queryFn: () =>
+      api<Playlist>(
+        `/playlists/${encodeURIComponent(playlistUrn!)}?show_tracks=true&access=playable,preview,blocked`,
+      ),
     enabled: !!playlistUrn,
     staleTime: MEDIUM_CACHE_MS,
     gcTime: INFINITE_GC_MS,
   });
 }
 
-/* ── Playlist Tracks ──────────────────────────────────────────── */
+
 
 export function usePlaylistTracks(playlistUrn: string | undefined) {
   const query = usePagedQuery<Track>({
     queryKey: ['playlist', playlistUrn, 'tracks'],
     url: (page, limit) =>
-      pagedUrl(`/playlists/${encodeURIComponent(playlistUrn!)}/tracks`, page, limit),
+      pagedUrl(
+        `/playlists/${encodeURIComponent(playlistUrn!)}/tracks`,
+        page,
+        limit,
+        'access=playable,preview,blocked',
+      ),
     limit: 200,
     staleTime: MEDIUM_CACHE_MS,
     enabled: !!playlistUrn,
     autoFetchAll: true,
   });
 
-  return { tracks: query.items, ...query };
+  const tracks = useMemo(() => normalizePlaylistTracks(query.items), [query.items]);
+
+  return { tracks, ...query };
 }
 
-/* ── User Profile ─────────────────────────────────────────────── */
+
 
 export function useUser(userUrn: string | undefined) {
   return useQuery({
@@ -595,15 +627,18 @@ export function useUserWebProfiles(userUrn: string | undefined) {
 export function useUserSubscription(userUrn: string | undefined) {
   return useQuery({
     queryKey: ['user', userUrn, 'subscription'],
-    queryFn: () => api<{ premium: boolean }>(`/users/${encodeURIComponent(userUrn!)}/subscription`),
+    queryFn: () =>
+      LOCAL_PREMIUM_UNLOCK
+        ? Promise.resolve({ premium: true })
+        : api<{ premium: boolean }>(`/users/${encodeURIComponent(userUrn!)}/subscription`),
     enabled: !!userUrn,
-    staleTime: MEDIUM_CACHE_MS,
+    staleTime: LOCAL_PREMIUM_UNLOCK ? Infinity : MEDIUM_CACHE_MS,
     gcTime: INFINITE_GC_MS,
     select: (d) => d.premium,
   });
 }
 
-/* ── My Library ────────────────────────────────────────────────── */
+
 
 export function useMyFollowings(limit = 30) {
   const query = usePagedQuery<SCUser>({
@@ -635,7 +670,7 @@ export function useMyPlaylists(limit = 30) {
   return { playlists: query.items, ...query };
 }
 
-/* ── Playlist Mutations ────────────────────────────────────────── */
+
 
 export function useUpdatePlaylistTracks(playlistUrn: string | undefined) {
   const qc = useQueryClient();
@@ -706,13 +741,14 @@ export function useDeletePlaylist() {
   return useMutation({
     mutationFn: (playlistUrn: string) =>
       api(`/playlists/${encodeURIComponent(playlistUrn)}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['me', 'playlists'] });
+    onSuccess: (_data, playlistUrn) => {
+      markPlaylistDead(playlistUrn, qc);
+      refreshPlaylistListCaches(qc);
     },
   });
 }
 
-/* ── Search ────────────────────────────────────────────────────── */
+
 
 export function useSearchTracks(q: string) {
   const query = usePagedQuery<Track>({
@@ -728,15 +764,16 @@ export function useSearchTracks(q: string) {
   return { tracks: query.items, ...query };
 }
 
-export function useSearchPlaylists(q: string) {
+export function useSearchPlaylists(q: string, opts?: { enabled?: boolean }) {
   const query = usePagedQuery<Playlist>({
     queryKey: ['search', 'playlists', q],
     url: (page, limit) => pagedUrl('/playlists', page, limit, `q=${encodeURIComponent(q)}`),
     limit: 20,
     staleTime: SEARCH_CACHE_MS,
-    maxPages: 5,
-    enabled: !!q.trim(),
+    maxPages: 2,
+    enabled: !!q.trim() && (opts?.enabled ?? true),
     dedupe: (p) => p.urn,
+    searchThrottle: true,
   });
 
   return { playlists: query.items, ...query };
@@ -756,7 +793,7 @@ export function useSearchUsers(q: string) {
   return { users: query.items, ...query };
 }
 
-/* ── Fallback / Seed Tracks ────────────────────────────────────── */
+
 
 const FALLBACK_TRACK_IDS = '2028682452,2065341288,2028677636,2209249766,2060818444,2064016848';
 
@@ -768,7 +805,7 @@ export function useFallbackTracks() {
   });
 }
 
-/* ── Discover ──────────────────────────────────────────────────── */
+
 
 type RelatedPool = Map<string, { count: number; track: Track }>;
 
@@ -788,12 +825,12 @@ function sampleTrackUrns(tracks: Track[], limit: number): string[] {
   return sample.map((track) => track.urn);
 }
 
-/**
- * Shared pool: fetches related tracks for up to 30 random liked tracks,
- * counts frequency of each related track. Used by both Recommended and Discover.
- */
+
+
+
+
 export function useRelatedPool(likedTracks: Track[]) {
-  // Stable seed — compute once when liked tracks first arrive, don't recompute on likes
+  
   const seedRef = useRef<string[]>([]);
   if (seedRef.current.length === 0 && likedTracks.length > 0) {
     seedRef.current = sampleTrackUrns(likedTracks, 30);
@@ -831,7 +868,7 @@ export function useRelatedPool(likedTracks: Track[]) {
   });
 }
 
-/** Top related tracks sorted by frequency — "Recommended For You" */
+
 export function useRecommendedTracks(pool: RelatedPool | undefined, limit = 40) {
   return useMemo(() => {
     if (!pool) return [];
@@ -842,7 +879,7 @@ export function useRecommendedTracks(pool: RelatedPool | undefined, limit = 40) 
   }, [pool, limit]);
 }
 
-/** Related tracks grouped by genre, sorted by frequency — "Discover" */
+
 export function useDiscoverData(pool: RelatedPool | undefined, likedTracks: Track[]) {
   const genreRanking = useMemo(() => {
     const counts = new Map<string, number>();
@@ -881,7 +918,7 @@ export function useDiscoverData(pool: RelatedPool | undefined, likedTracks: Trac
   }, [pool, genreRanking]);
 }
 
-/* ── Infinite scroll ───────────────────────────────────────────── */
+
 
 export function useInfiniteScroll(
   hasNextPage: boolean,

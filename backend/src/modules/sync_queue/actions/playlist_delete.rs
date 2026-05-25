@@ -8,8 +8,6 @@ pub async fn execute(ctx: &ActionCtx<'_>) -> AppResult<()> {
     ctx.sc
         .api_delete(&format!("/playlists/{}", ctx.target_urn), ctx.token)
         .await?;
-    // Сервис уже удалил user_owned_playlists + cached_playlists в момент
-    // запроса; добиваем на случай race с другим юзером/refresh'ем.
     sqlx::query("DELETE FROM cached_playlists WHERE playlist_urn = $1")
         .bind(ctx.target_urn)
         .execute(ctx.pg)

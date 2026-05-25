@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { fetchWithAuthFallback, setSessionId } from '../lib/api';
+import { isValidSessionId, normalizeSessionId } from '../lib/session-id';
 import { tauriStorage } from '../lib/tauri-storage';
 
 interface User {
@@ -20,7 +21,7 @@ interface AuthState {
   sessionId: string | null;
   user: User | null;
   isAuthenticated: boolean;
-  setSession: (sessionId: string) => void;
+  setSession: (sessionId: string) => boolean;
   fetchUser: () => Promise<void>;
   renewSession: () => Promise<void>;
   logout: () => void;
@@ -34,8 +35,11 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       setSession: (sessionId: string) => {
-        setSessionId(sessionId);
-        set({ sessionId, isAuthenticated: true });
+        const normalized = normalizeSessionId(sessionId);
+        if (!normalized) return false;
+        setSessionId(normalized);
+        set({ sessionId: normalized, isAuthenticated: true });
+        return true;
       },
 
       fetchUser: async () => {
@@ -47,7 +51,17 @@ export const useAuthStore = create<AuthState>()(
       },
 
       renewSession: async () => {
-        await fetchWithAuthFallback('/auth/refresh', { method: 'POST' });
+        const { sessionId } = get();
+        if (!isValidSessionId(sessionId)) {
+          get().logout();
+          throw new Error('Invalid session');
+        }
+        await fetchWithAuthFallback(
+          '/auth/refresh',
+          { method: 'POST' },
+          undefined,
+          { silent: true },
+        );
         await get().fetchUser();
       },
 
@@ -61,9 +75,15 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => tauriStorage),
       partialize: (state) => ({ sessionId: state.sessionId }),
       onRehydrateStorage: () => (state) => {
-        if (state?.sessionId) {
-          setSessionId(state.sessionId);
+        if (!state?.sessionId) return;
+        if (!isValidSessionId(state.sessionId)) {
+          setSessionId(null);
+          state.sessionId = null;
+          state.isAuthenticated = false;
+          state.user = null;
+          return;
         }
+        setSessionId(state.sessionId);
       },
     },
   ),

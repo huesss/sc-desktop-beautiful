@@ -3,6 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { type CallStatus, callIsEnabled, callSetEnabled, callStatus } from '../../lib/call';
 import { Lock } from '../../lib/icons';
 import { StarModal, useStarSubscription } from '../layout/StarSubscription';
+import {
+  SettingsGroup,
+  SettingsRow,
+  SettingsRowInner,
+  SettingsToggle,
+} from './settings-ui';
 
 const STATUS_POLL_MS = 5000;
 
@@ -63,96 +69,41 @@ export const CallProxySection: React.FC = React.memo(() => {
 
   const dot = DOT_COLOR[status.kind];
   const locked = enabled && !isPremium;
+  const statusLine = t(`call.status.${status.kind}`);
 
   return (
     <>
-      <section
-        className="relative overflow-hidden rounded-3xl"
-        style={{ contain: 'layout paint style' }}
-      >
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(ellipse 80% 60% at 80% 0%, var(--color-accent-glow) 0%, transparent 60%), linear-gradient(165deg, rgba(20,20,28,0.55) 0%, rgba(10,10,14,0.65) 100%)',
-            backdropFilter: 'blur(40px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(160%)',
-            contain: 'strict',
-            transform: 'translateZ(0)',
-          }}
-        />
-        <div
-          aria-hidden
-          className="absolute inset-x-0 top-0 h-px pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.16) 50%, transparent 100%)',
-          }}
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 rounded-3xl pointer-events-none"
-          style={{ border: '0.5px solid rgba(255,255,255,0.08)' }}
-        />
-
-        <div
-          className="relative flex items-center gap-4 px-5 py-4"
-          style={{ isolation: 'isolate' }}
-        >
-          <div
-            className="relative shrink-0 rounded-full"
-            style={{
-              width: 10,
-              height: 10,
-              background: dot,
-              boxShadow: `0 0 14px ${dot}`,
-              animation:
-                status.kind === 'connecting' || status.kind === 'provisioning'
-                  ? 'pulse 1.4s ease-in-out infinite'
-                  : undefined,
-            }}
+      <SettingsGroup title={t('call.title')}>
+        <SettingsRow divider={false}>
+          <SettingsRowInner
+            leading={
+              <div
+                className="size-2.5 rounded-full"
+                style={{
+                  background: dot,
+                  boxShadow: status.kind === 'active' ? `0 0 10px ${dot}` : undefined,
+                }}
+              />
+            }
+            label={t('call.title')}
+            description={
+              status.kind === 'failed' && status.error
+                ? status.error
+                : statusLine
+            }
+            trailing={
+              <div className="relative">
+                <SettingsToggle checked={enabled} onChange={onToggle} disabled={busy} />
+                {locked ? (
+                  <span className="pointer-events-none absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-[#0a0a0a]">
+                    <Lock size={9} className="text-white/50" />
+                  </span>
+                ) : null}
+              </div>
+            }
           />
-
-          <div className="flex-1 min-w-0">
-            <h3 className="text-[15px] font-semibold tracking-tight text-white">
-              {t('call.title')}
-            </h3>
-            <p className="text-[11px] text-white/45 mt-0.5">{t(`call.status.${status.kind}`)}</p>
-            {status.kind === 'failed' && status.error ? (
-              <p
-                className="text-[10px] text-red-400/80 mt-1 font-mono break-all"
-                title={status.error}
-              >
-                {status.error}
-              </p>
-            ) : null}
-          </div>
-
-          <button
-            type="button"
-            onClick={onToggle}
-            disabled={busy}
-            aria-pressed={enabled}
-            aria-label={enabled ? t('call.disable') : t('call.enable')}
-            className="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors duration-200 active:scale-[0.94] disabled:opacity-50"
-            style={{
-              background: enabled ? 'var(--color-accent)' : 'rgba(255,255,255,0.2)',
-            }}
-          >
-            <span
-              className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full shadow-md transition-transform duration-200"
-              style={{
-                background: '#ffffff',
-                transform: enabled ? 'translateX(22px)' : 'translateX(2px)',
-              }}
-            >
-              {locked ? <Lock size={10} className="text-black/60" /> : null}
-            </span>
-          </button>
-        </div>
-      </section>
-
+        </SettingsRow>
+      </SettingsGroup>
       <StarModal open={modalOpen} onOpenChange={setModalOpen} />
     </>
   );

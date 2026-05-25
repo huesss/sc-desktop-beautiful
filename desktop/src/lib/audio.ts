@@ -1,7 +1,7 @@
 import { listen } from '@tauri-apps/api/event';
 import { toast } from 'sonner';
 import i18n from '../i18n';
-import type { Track } from '../stores/player';
+import type { PlaybackQuality, Track } from '../stores/player';
 import { usePlayerStore } from '../stores/player';
 import { useSettingsStore } from '../stores/settings';
 import {
@@ -19,28 +19,114 @@ import {
   type TrackCacheInfo,
 } from './cache';
 import { trackedInvoke as invoke } from './diagnostics';
-import { isUrnDisliked } from './dislikes';
 import { recordEvent } from './events';
 import { art } from './formatters';
 import { rememberTracks } from './offline-index';
+import {
+  clearPlaybackResume,
+  getResumePosition,
+  savePlaybackResume,
+} from './playback-resume';
 import { getUrnCluster, recordClusterFeedback } from './recsFeedback';
+import { playNextVibeTrack } from './vibe-playlist';
 import { getArtistDisplay, getDisplayTitle } from './track-display';
 
 const SKIP_THRESHOLD_SEC = 30;
-/** Минимум, чтобы засчитать «прослушано полностью» для коротких треков (50% длительности). */
+
 const FULL_PLAY_RATIO = 0.5;
 
-/* ── Audio engine state ──────────────────────────────────────── */
+
 
 let currentUrn: string | null = null;
+let loadingUrn: string | null = null;
+let loadingSelectionKey: string | null = null;
+let engineSelectionKey: string | null = null;
 let hasTrack = false;
 let fallbackDuration = 0;
 let cachedTime = 0;
 let cachedDuration = 0;
 let loadGen = 0;
 let lastEndedUrn: string | null = null;
+let lastTickPos = 0;
+let lastTickAt = 0;
 const listeners = new Set<() => void>();
 const API_PREVIEW_DURATION_MS = 30_000;
+const LOAD_ENDED_SUPPRESS_MS = 5000;
+const ENDED_TAIL_SUPPRESS_MS = 1500;
+
+let suppressEndedUntil = 0;
+let crossfadeAdvanceScheduled = false;
+let allowCrossfadeOnNextLoad = false;
+let crossfadeSourceUrn: string | null = null;
+let crossfadePreloadUrn: string | null = null;
+let lastResumePersistAt = 0;
+
+function peekNextQueueTrack(): Track | null {
+  const { queue, queueIndex, repeat } = usePlayerStore.getState();
+  if (queue.length === 0) return null;
+  let nextIdx = queueIndex + 1;
+  if (nextIdx >= queue.length) {
+    if (repeat === 'all') nextIdx = 0;
+    else return null;
+  }
+  return queue[nextIdx] ?? null;
+}
+
+function markAutoAdvanceCrossfade() {
+  const fromUrn = currentUrn;
+  if (!fromUrn) return;
+  if (usePlayerStore.getState().playbackContext?.kind === 'vibe') return;
+
+  const { crossfadeEnabled, crossfadeSeconds } = useSettingsStore.getState();
+  if (crossfadeEnabled && crossfadeSeconds >= 1) {
+    allowCrossfadeOnNextLoad = true;
+    crossfadeSourceUrn = fromUrn;
+  }
+}
+
+function shouldUseCrossfade(nextUrn: string): boolean {
+  if (!allowCrossfadeOnNextLoad) return false;
+  allowCrossfadeOnNextLoad = false;
+  const sourceUrn = crossfadeSourceUrn;
+  crossfadeSourceUrn = null;
+  if (!sourceUrn || sourceUrn === nextUrn || !hasTrack) return false;
+  const { crossfadeEnabled, crossfadeSeconds } = useSettingsStore.getState();
+  return crossfadeEnabled && crossfadeSeconds >= 1;
+}
+
+function effectivePlaybackDuration(): number {
+  if (cachedDuration > 0) return Math.max(cachedDuration, cachedTime);
+  return fallbackDuration;
+}
+
+async function invokeTrackLoad(
+  path: string,
+  cacheKey: string,
+  shouldPlay: boolean,
+  useCrossfade: boolean,
+): Promise<{ duration_secs: number | null }> {
+  if (useCrossfade) {
+    return invoke<{ duration_secs: number | null }>('audio_crossfade_file', {
+      path,
+      cacheKey,
+      fadeSecs: useSettingsStore.getState().crossfadeSeconds,
+      startPaused: !shouldPlay,
+    });
+  }
+  return invoke<{ duration_secs: number | null }>('audio_load_file', {
+    path,
+    cacheKey,
+    startPaused: !shouldPlay,
+  });
+}
+
+function suppressPlaybackEnded(ms: number) {
+  suppressEndedUntil = Math.max(suppressEndedUntil, performance.now() + ms);
+}
+
+function isPlaybackEndedSuppressed(): boolean {
+  return performance.now() < suppressEndedUntil;
+}
 
 function notify() {
   for (const l of listeners) l();
@@ -55,6 +141,22 @@ export function getCurrentTime(): number {
   return cachedTime;
 }
 
+function syncTickSnapshot(pos: number) {
+  lastTickPos = pos;
+  lastTickAt = performance.now();
+}
+
+
+export function getLyricsTime(): number {
+  if (!hasTrack) return 0;
+  if (!usePlayerStore.getState().isPlaying) return cachedTime;
+  const rate = usePlayerStore.getState().playbackRate;
+  const elapsed = (performance.now() - lastTickAt) / 1000;
+  const pos = lastTickPos + elapsed * rate;
+  const max = getDuration();
+  return max > 0 ? Math.min(pos, max) : pos;
+}
+
 export function getDuration(): number {
   return cachedDuration;
 }
@@ -63,7 +165,11 @@ export function seek(seconds: number) {
   if (!hasTrack) return;
   invoke('audio_seek', { position: seconds }).catch(console.error);
   cachedTime = seconds;
+  syncTickSnapshot(seconds);
   notify();
+  if (currentUrn && seconds > 0) {
+    savePlaybackResume(currentUrn, seconds);
+  }
   setTimeout(() => updateMediaPosition(), 150);
 }
 
@@ -75,12 +181,37 @@ export function handlePrev() {
   }
 }
 
-/* ── Native audio control ────────────────────────────────────── */
+
+
+function getSelectionKey(track: Track | null, queueIndex: number): string | null {
+  if (!track) return null;
+  return `${track.urn}@${queueIndex}`;
+}
+
+function selectionKeyFromStore(): string | null {
+  const { currentTrack, queueIndex } = usePlayerStore.getState();
+  return getSelectionKey(currentTrack, queueIndex);
+}
+
+function isStaleLoad(gen: number): boolean {
+  return gen !== loadGen;
+}
+
+function releaseLoadLocks(gen: number) {
+  if (isStaleLoad(gen)) return;
+  loadingUrn = null;
+  loadingSelectionKey = null;
+}
+
+let loadPipeline: Promise<void> = Promise.resolve();
 
 function stopTrack() {
+  allowCrossfadeOnNextLoad = false;
+  crossfadeSourceUrn = null;
   invoke('audio_stop').catch(console.error);
   hasTrack = false;
   cachedTime = 0;
+  syncTickSnapshot(0);
 }
 
 export async function switchAudioDevice(deviceName: string | null, manual = false) {
@@ -91,7 +222,7 @@ export async function switchAudioDevice(deviceName: string | null, manual = fals
   await invoke('audio_switch_device', { deviceName });
 }
 
-/** Reload the current track on new audio device, preserving position */
+
 export async function reloadCurrentTrack() {
   const track = usePlayerStore.getState().currentTrack;
   if (!track) return;
@@ -216,14 +347,38 @@ function commitTrackMetadata(track: Track) {
   notify();
 }
 
+const metadataInflight = new Map<string, Promise<Track>>();
+const metadataFailUntil = new Map<string, number>();
+const METADATA_FAIL_COOLDOWN_MS = 90_000;
+
 async function fetchFreshTrackMetadata(track: Track): Promise<Track> {
-  try {
-    const freshTrack = await api<Track>(`/tracks/${encodeURIComponent(track.urn)}`);
-    return mergeTrackMetadata(track, freshTrack);
-  } catch (error) {
-    console.warn('[Audio] Failed to hydrate track metadata:', error);
-    return track;
-  }
+  if (!getSessionId()) return track;
+
+  const failUntil = metadataFailUntil.get(track.urn) ?? 0;
+  if (Date.now() < failUntil) return track;
+
+  const inflight = metadataInflight.get(track.urn);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    try {
+      const freshTrack = await api<Track>(
+        `/tracks/${encodeURIComponent(track.urn)}`,
+        {},
+        undefined,
+        { silent: true },
+      );
+      return mergeTrackMetadata(track, freshTrack);
+    } catch {
+      metadataFailUntil.set(track.urn, Date.now() + METADATA_FAIL_COOLDOWN_MS);
+      return track;
+    } finally {
+      metadataInflight.delete(track.urn);
+    }
+  })();
+
+  metadataInflight.set(track.urn, promise);
+  return promise;
 }
 
 async function resolveTrackMetadata(track: Track): Promise<Track> {
@@ -239,57 +394,86 @@ async function resolveTrackMetadata(track: Track): Promise<Track> {
   }
 }
 
-async function loadTrack(track: Track) {
+async function loadTrack(track: Track, playIntent?: boolean) {
   const gen = ++loadGen;
-  stopTrack();
-  currentUrn = track.urn;
+  loadPipeline = loadPipeline
+    .then(() => loadTrackWork(track, playIntent, gen))
+    .catch(() => loadTrackWork(track, playIntent, gen));
+}
+
+async function loadTrackWork(track: Track, playIntent: boolean | undefined, gen: number) {
+  const prevUrn = currentUrn;
   const urn = track.urn;
+  const queueIndex = usePlayerStore.getState().queueIndex;
+  const selectionKey = getSelectionKey(track, queueIndex);
+  const shouldPlay = playIntent ?? usePlayerStore.getState().isPlaying;
+
+  const useCrossfade = shouldUseCrossfade(urn);
+  const fadeSecs = useSettingsStore.getState().crossfadeSeconds;
+  if (prevUrn && prevUrn !== urn && cachedTime > 0) {
+    savePlaybackResume(prevUrn, cachedTime);
+  }
+  suppressPlaybackEnded(
+    useCrossfade ? (fadeSecs + 2) * 1000 : LOAD_ENDED_SUPPRESS_MS,
+  );
+  loadingUrn = urn;
+  loadingSelectionKey = selectionKey;
+  if (!useCrossfade) {
+    stopTrack();
+  }
+  currentUrn = urn;
+
+  if (prevUrn && prevUrn !== urn) {
+    invoke('track_cancel_upgrade', { urn: prevUrn }).catch(console.error);
+  }
 
   void hydrateTrackMetadata(track, gen);
 
   fallbackDuration = track.duration / 1000;
   cachedDuration = fallbackDuration;
   cachedTime = 0;
+  syncTickSnapshot(0);
   usePlayerStore.setState({ downloadProgress: null });
   usePlayerStore.getState().setPlaybackTransport(null, null);
   notify();
 
-  // Sync EQ state to Rust
-  const { eqEnabled, eqGains, normalizeVolume } = useSettingsStore.getState();
-  invoke('audio_set_eq', { enabled: eqEnabled, gains: eqGains }).catch(console.error);
+  
+  const { normalizeVolume } = useSettingsStore.getState();
+  invoke('audio_set_eq', { enabled: false, gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }).catch(
+    console.error,
+  );
   invoke('audio_set_normalization', { enabled: normalizeVolume }).catch(console.error);
 
-  // Sync volume + playback rate (pitch is folded into the speed value sent to Rust)
+  
   invoke('audio_set_volume', { volume: usePlayerStore.getState().volume }).catch(console.error);
   invoke('audio_set_playback_rate', { rate: getEffectivePlaybackRate() }).catch(console.error);
 
   try {
     const highQualityStreaming = useSettingsStore.getState().highQualityStreaming;
 
-    // Strategy 1: Cache hit — instant
+    
     const cached = await getCacheInfo(urn);
+    if (isStaleLoad(gen)) return;
     if (cached?.path) {
-      if (gen !== loadGen) return;
       usePlayerStore.getState().setPlaybackTransport(cached.quality, cached.source);
       console.log('[Audio] Playing from cache:', urn);
-      const loadResult = await invoke<{ duration_secs: number | null }>('audio_load_file', {
-        path: cached.path,
-        cacheKey: urn,
-        startPaused: !usePlayerStore.getState().isPlaying,
-      });
-      if (gen !== loadGen) return;
+      const loadResult = await invokeTrackLoad(cached.path, urn, shouldPlay, useCrossfade);
+      if (isStaleLoad(gen)) return;
       if (loadResult?.duration_secs) {
         fallbackDuration = loadResult.duration_secs;
         cachedDuration = loadResult.duration_secs;
         updateMetadata(track, loadResult.duration_secs);
         notify();
       }
-      afterLoad(track, gen);
+      usePlayerStore.setState({ downloadProgress: null });
+      const durationSecs = loadResult?.duration_secs ?? fallbackDuration;
+      const resumePos = useCrossfade ? 0 : getResumePosition(urn, durationSecs);
+      afterLoad(track, gen, queueIndex, shouldPlay, resumePos);
       return;
     }
 
-    // Strategy 2: Download full track to cache — Rust picks storage/API internally
-    usePlayerStore.setState({ downloadProgress: 0 });
+    
+    usePlayerStore.setState({ downloadProgress: 0.001 });
 
     let cachedInfo: TrackCacheInfo;
     try {
@@ -300,16 +484,13 @@ async function loadTrack(track: Track) {
       cachedInfo = await ensureTrackCached(urn, false);
     }
 
-    if (gen !== loadGen) return;
+    if (isStaleLoad(gen)) return;
     usePlayerStore.setState({ downloadProgress: null });
     usePlayerStore.getState().setPlaybackTransport(cachedInfo.quality, cachedInfo.source);
 
     console.log('[Audio] Playing downloaded track:', urn);
-    const loadResult = await invoke<{ duration_secs: number | null }>('audio_load_file', {
-      path: cachedInfo.path,
-      cacheKey: urn,
-      startPaused: !usePlayerStore.getState().isPlaying,
-    });
+    const loadResult = await invokeTrackLoad(cachedInfo.path, urn, shouldPlay, useCrossfade);
+    if (isStaleLoad(gen)) return;
     if (loadResult?.duration_secs) {
       fallbackDuration = loadResult.duration_secs;
       cachedDuration = loadResult.duration_secs;
@@ -318,13 +499,15 @@ async function loadTrack(track: Track) {
     }
     void enforceAudioCacheLimit().catch(console.error);
 
-    if (gen !== loadGen) return;
-    afterLoad(track, gen);
+    const durationSecs = loadResult?.duration_secs ?? fallbackDuration;
+    const resumePos = useCrossfade ? 0 : getResumePosition(urn, durationSecs);
+    afterLoad(track, gen, queueIndex, shouldPlay, resumePos);
   } catch (e) {
     console.error('[Audio] Load failed:', e);
     usePlayerStore.setState({ downloadProgress: null });
     usePlayerStore.getState().setPlaybackTransport(null, null);
-    if (gen !== loadGen) return;
+    if (isStaleLoad(gen)) return;
+    releaseLoadLocks(gen);
     const errorText = getLoadErrorText(e);
     toast.error(i18n.t('track.loadError'), {
       description: errorText ? `${track.title}: ${errorText}` : track.title,
@@ -333,53 +516,108 @@ async function loadTrack(track: Track) {
   }
 }
 
-function afterLoad(track: Track, gen: number) {
-  if (gen !== loadGen) {
-    invoke('audio_stop').catch(console.error);
+function afterLoad(
+  track: Track,
+  gen: number,
+  queueIndex: number,
+  shouldPlay: boolean,
+  resumePosition = 0,
+) {
+  if (isStaleLoad(gen)) return;
+  if (usePlayerStore.getState().currentTrack?.urn !== track.urn) {
+    releaseLoadLocks(gen);
     return;
   }
+  if (usePlayerStore.getState().queueIndex !== queueIndex) {
+    releaseLoadLocks(gen);
+    return;
+  }
+
   hasTrack = true;
+  loadingUrn = null;
+  loadingSelectionKey = null;
+  engineSelectionKey = getSelectionKey(track, queueIndex);
+  usePlayerStore.setState({ downloadProgress: null });
+
+  if (resumePosition > 0) {
+    seek(resumePosition);
+  }
+
+  if (shouldPlay && !usePlayerStore.getState().isPlaying) {
+    usePlayerStore.getState().resume();
+  }
 
   const historyTrack =
     usePlayerStore.getState().currentTrack?.urn === track.urn
       ? usePlayerStore.getState().currentTrack
       : track;
 
-  // Record to listening history (fire-and-forget), skip on repeat-one (same track looping)
+  
   if (historyTrack?.urn && historyTrack.title && usePlayerStore.getState().repeat !== 'one') {
-    api('/history', {
-      method: 'POST',
-      body: JSON.stringify({
-        scTrackId: historyTrack.urn,
-        title: historyTrack.title,
-        artistName: historyTrack.user?.username || '',
-        artistUrn: historyTrack.user?.urn || null,
-        artworkUrl: historyTrack.artwork_url || null,
-        duration: historyTrack.duration || 0,
-      }),
-    }).catch(() => {});
+    api(
+      '/history',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          scTrackId: historyTrack.urn,
+          title: historyTrack.title,
+          artistName: historyTrack.user?.username || '',
+          artistUrn: historyTrack.user?.urn || null,
+          artworkUrl: historyTrack.artwork_url || null,
+          duration: historyTrack.duration || 0,
+        }),
+      },
+      undefined,
+      { silent: true },
+    ).catch(() => {});
   }
 
-  const isPlaying = usePlayerStore.getState().isPlaying;
-  invoke(isPlaying ? 'audio_play' : 'audio_pause').catch(console.error);
-  updatePlaybackState(isPlaying);
+  if (shouldPlay) {
+    invoke('audio_play').catch(console.error);
+    updatePlaybackState(true);
+  } else {
+    invoke('audio_pause').catch(console.error);
+    updatePlaybackState(false);
+  }
   updateMediaPosition();
+  notify();
   preloadQueue();
+  suppressPlaybackEnded(ENDED_TAIL_SUPPRESS_MS);
+  crossfadeAdvanceScheduled = false;
+  crossfadePreloadUrn = null;
 }
 
 async function hydrateTrackMetadata(track: Track, gen: number) {
   let nextTrack = await fetchFreshTrackMetadata(track);
-  if (gen !== loadGen || currentUrn !== track.urn) return;
+  if (gen !== loadGen || loadingUrn !== track.urn) return;
 
   nextTrack = await resolveTrackMetadata(nextTrack);
-  if (gen !== loadGen || currentUrn !== track.urn) return;
+  if (gen !== loadGen || loadingUrn !== track.urn) return;
   commitTrackMetadata(nextTrack);
 }
 
 function handleTrackEnd() {
+  if (loadingUrn || isPlaybackEndedSuppressed()) return;
+
   const state = usePlayerStore.getState();
+  if (state.playbackContext?.kind === 'vibe') {
+    const dur = effectivePlaybackDuration();
+    const tickFresh = performance.now() - lastTickAt < 2000;
+    const sameTrack = !!state.currentTrack?.urn && state.currentTrack.urn === currentUrn;
+    const atRealEnd =
+      dur > 15 &&
+      cachedTime >= 10 &&
+      cachedTime >= dur - 0.25 &&
+      cachedTime / dur >= 0.985;
+    if (!tickFresh || !sameTrack || !atRealEnd) {
+      suppressPlaybackEnded(3000);
+      return;
+    }
+    void playNextVibeTrack();
+    return;
+  }
   if (state.repeat === 'one') {
-    // rodio sink is empty after track ends — must reload
+    
     if (state.currentTrack) void loadTrack(state.currentTrack);
   } else {
     const { queue, queueIndex } = state;
@@ -387,19 +625,68 @@ function handleTrackEnd() {
     if (isLast && state.repeat === 'off' && queue.length > 0) {
       void autoplayRelated(queue[queueIndex]);
     } else {
-      // Clear currentUrn so subscriber detects change even if next track has same URN
-      currentUrn = null;
+      markAutoAdvanceCrossfade();
       usePlayerStore.getState().next();
     }
   }
 }
 
-/* ── Tauri event listeners ───────────────────────────────────── */
+
 
 listen<number>('audio:tick', (event) => {
   cachedTime = event.payload;
+  syncTickSnapshot(event.payload);
   if (cachedDuration <= 0) cachedDuration = fallbackDuration;
   notify();
+
+  if (currentUrn && cachedTime > 0) {
+    const now = performance.now();
+    if (now - lastResumePersistAt >= 2000) {
+      lastResumePersistAt = now;
+      savePlaybackResume(currentUrn, cachedTime);
+    }
+  }
+
+  if (usePlayerStore.getState().playbackContext?.kind === 'vibe') return;
+
+  const { crossfadeEnabled, crossfadeSeconds } = useSettingsStore.getState();
+  if (!crossfadeEnabled || crossfadeSeconds < 1 || !hasTrack || loadingUrn) return;
+
+  const duration = effectivePlaybackDuration();
+  if (duration <= crossfadeSeconds + 0.5) return;
+  if (!usePlayerStore.getState().isPlaying) return;
+
+  const remaining = duration - cachedTime;
+  const preloadLead = crossfadeSeconds + 30;
+
+  if (remaining <= preloadLead && remaining > crossfadeSeconds + 0.5) {
+    const nextTrack = peekNextQueueTrack();
+    if (nextTrack && crossfadePreloadUrn !== nextTrack.urn) {
+      crossfadePreloadUrn = nextTrack.urn;
+      const hq = useSettingsStore.getState().highQualityStreaming;
+      void ensureTrackCached(nextTrack.urn, hq).catch(() => {
+        void ensureTrackCached(nextTrack.urn, false).catch(() => {});
+      });
+    }
+  }
+
+  if (
+    !crossfadeAdvanceScheduled &&
+    remaining > 0.2 &&
+    remaining <= crossfadeSeconds
+  ) {
+    const playerState = usePlayerStore.getState();
+    if (playerState.playbackContext?.kind === 'vibe') return;
+    if (playerState.repeat === 'one') return;
+    const isLast = playerState.queueIndex >= playerState.queue.length - 1;
+    if (isLast && playerState.repeat === 'off') return;
+
+    crossfadeAdvanceScheduled = true;
+    suppressPlaybackEnded((crossfadeSeconds + 3) * 1000);
+    lastEndedUrn = currentUrn;
+    markAutoAdvanceCrossfade();
+    playerState.next();
+  }
 });
 
 listen<{ urn: string; progress: number }>('track:download-progress', (event) => {
@@ -409,11 +696,32 @@ listen<{ urn: string; progress: number }>('track:download-progress', (event) => 
   }
 });
 
+listen<{ urn: string; path: string; quality: PlaybackQuality }>(
+  'track:quality-upgraded',
+  async (event) => {
+    const { urn, path, quality } = event.payload;
+    if (urn !== currentUrn || !hasTrack) return;
+    try {
+      await invoke('audio_swap_source', {
+        path,
+        positionSecs: cachedTime,
+        cacheKey: urn,
+      });
+      usePlayerStore.getState().setPlaybackTransport(quality, 'direct');
+      console.log(`[Audio] swapped ${urn} → ${quality}`);
+    } catch (err) {
+      console.error('[Audio] swap_source failed:', err);
+    }
+  },
+);
+
 listen('audio:ended', () => {
+  if (loadingUrn || isPlaybackEndedSuppressed()) return;
+
   if (currentUrn) {
-    // Засчитываем full_play только если трек реально игрался: либо ≥30s,
-    // либо проиграно ≥50% длительности (для коротких треков). Иначе это
-    // зависшая загрузка / зеро-длительность баг — не отправляем.
+    
+    
+    
     const playedEnough =
       cachedTime >= SKIP_THRESHOLD_SEC ||
       (cachedDuration > 0 && cachedTime >= cachedDuration * FULL_PLAY_RATIO);
@@ -422,6 +730,7 @@ listen('audio:ended', () => {
       recordEvent('full_play', currentUrn, positionPct);
       const cluster = getUrnCluster(currentUrn);
       if (cluster) recordClusterFeedback(cluster, 'complete');
+      clearPlaybackResume();
     }
     lastEndedUrn = currentUrn;
   }
@@ -437,11 +746,14 @@ listen<string>('audio:default-device-changed', (event) => {
   console.log(`[Audio] Default output changed to '${event.payload}'`);
 });
 
-/* ── Store subscriber ────────────────────────────────────────── */
+
 
 usePlayerStore.subscribe((state, prev) => {
-  const nextUrn = state.currentTrack?.urn ?? null;
-  const trackChanged = nextUrn !== currentUrn;
+  const selectionKey = selectionKeyFromStore();
+  const trackChanged =
+    selectionKey !== null &&
+    selectionKey !== loadingSelectionKey &&
+    (selectionKey !== engineSelectionKey || !hasTrack);
   const playToggled = state.isPlaying !== prev.isPlaying;
 
   if (trackChanged) {
@@ -462,25 +774,17 @@ usePlayerStore.subscribe((state, prev) => {
     lastEndedUrn = null;
 
     if (state.currentTrack) {
-      // Автоскип дизлайкнутых треков: пропускаем без загрузки/плэя.
-      if (isUrnDisliked(state.currentTrack.urn)) {
-        currentUrn = null;
-        fallbackDuration = 0;
-        cachedDuration = 0;
-        cachedTime = 0;
-        hasTrack = false;
-        usePlayerStore.getState().setPlaybackTransport(null, null);
-        notify();
-        usePlayerStore.getState().next();
-        return;
-      }
       updateMetadata(state.currentTrack);
-      void loadTrack(state.currentTrack);
+      void loadTrack(state.currentTrack, state.isPlaying);
     } else {
       stopTrack();
       currentUrn = null;
+      loadingUrn = null;
+      loadingSelectionKey = null;
+      engineSelectionKey = null;
       fallbackDuration = 0;
       cachedDuration = 0;
+      usePlayerStore.setState({ downloadProgress: null });
       usePlayerStore.getState().setPlaybackTransport(null, null);
       notify();
     }
@@ -490,14 +794,18 @@ usePlayerStore.subscribe((state, prev) => {
   if (playToggled && !trackChanged) {
     if (state.isPlaying) {
       if (!hasTrack && state.currentTrack) {
-        void loadTrack(state.currentTrack);
-      } else {
+        void loadTrack(state.currentTrack, true);
+      } else if (hasTrack) {
         invoke('audio_play').catch(console.error);
+        updatePlaybackState(true);
       }
     } else {
+      if (state.currentTrack && currentUrn) {
+        savePlaybackResume(state.currentTrack.urn, getCurrentTime());
+      }
       invoke('audio_pause').catch(console.error);
+      updatePlaybackState(false);
     }
-    updatePlaybackState(state.isPlaying);
   }
 
   if (state.volume !== prev.volume) {
@@ -513,10 +821,10 @@ usePlayerStore.subscribe((state, prev) => {
   }
 });
 
-/** Combine playback rate and (manual) pitch into a single Rust-side speed value.
- *  Rust uses rodio's `set_speed` which couples tempo+pitch — so manual pitch is
- *  applied as a multiplier on top of the user's rate.
- */
+
+
+
+
 function getEffectivePlaybackRate(): number {
   const { playbackRate, pitchControlMode, pitchSemitones } = usePlayerStore.getState();
   if (pitchControlMode === 'manual' && Math.abs(pitchSemitones) > 0.001) {
@@ -525,13 +833,9 @@ function getEffectivePlaybackRate(): number {
   return playbackRate;
 }
 
-/* ── EQ settings subscriber ──────────────────────────────────── */
+
 
 useSettingsStore.subscribe((state, prev) => {
-  if (state.eqEnabled !== prev.eqEnabled || state.eqGains !== prev.eqGains) {
-    invoke('audio_set_eq', { enabled: state.eqEnabled, gains: state.eqGains }).catch(console.error);
-  }
-
   if (state.normalizeVolume !== prev.normalizeVolume) {
     invoke('audio_set_normalization', { enabled: state.normalizeVolume }).catch(console.error);
     if (usePlayerStore.getState().currentTrack) {
@@ -540,7 +844,7 @@ useSettingsStore.subscribe((state, prev) => {
   }
 });
 
-/* ── Native Media Controls (souvlaki: MPRIS/SMTC) ───────────── */
+
 
 function updateMetadata(track: Track, durationSecs?: number) {
   const coverUrl = art(track.artwork_url, 't500x500') || undefined;
@@ -565,7 +869,7 @@ function updateMediaPosition() {
   }
 }
 
-// Listen for media control events from souvlaki (MPRIS/SMTC)
+
 listen('media:play', () => usePlayerStore.getState().resume());
 listen('media:pause', () => usePlayerStore.getState().pause());
 listen('media:toggle', () => usePlayerStore.getState().togglePlay());
@@ -581,7 +885,7 @@ listen<number>('media:seek-relative', (e) => {
   }
 });
 
-/* ── Autoplay ────────────────────────────────────────────────── */
+
 
 let autoplayLoading = false;
 
@@ -611,7 +915,7 @@ async function autoplayRelated(lastTrack: Track) {
   }
 }
 
-/* ── Preloading ──────────────────────────────────────────────── */
+
 
 let preloadTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -636,7 +940,8 @@ export function preloadTrack(urn: string) {
 }
 
 export function preloadQueue() {
-  const { queue, queueIndex } = usePlayerStore.getState();
+  const { queue, queueIndex, playbackContext } = usePlayerStore.getState();
+  if (playbackContext?.kind === 'vibe') return;
   const entries: Array<{
     urn: string;
     urls: string[];

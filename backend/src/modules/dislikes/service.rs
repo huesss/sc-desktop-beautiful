@@ -104,6 +104,16 @@ impl DislikesService {
         Ok(row.is_some())
     }
 
+    pub async fn clear_all(&self, sc_user_id: &str) -> AppResult<StatusResult> {
+        sqlx::query("DELETE FROM disliked_tracks WHERE sc_user_id = $1")
+            .bind(sc_user_id)
+            .execute(&self.pg)
+            .await?;
+        Ok(StatusResult {
+            status: "cleared".into(),
+        })
+    }
+
     pub async fn list_ids_by_user_id(
         &self,
         sc_user_id: &str,

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 use tokio::task;
 
 use crate::audio::decode::{create_player_from_bytes, resolve_normalization_gain};
@@ -28,7 +28,17 @@ fn volume_to_rodio(v: f64) -> f32 {
     (v / 100.0).clamp(0.0, 2.0) as f32
 }
 
+fn abort_crossfade(state: &AudioState) {
+    state.crossfade_id.fetch_add(1, Ordering::Relaxed);
+    if let Some(holder) = state.crossfade_outgoing.lock().unwrap().take() {
+        if let Some(outgoing) = holder.lock().unwrap().take() {
+            outgoing.stop();
+        }
+    }
+}
+
 fn stop_current_player(state: &AudioState) {
+    abort_crossfade(state);
     suppress_ended_temporarily(state);
     let mut player = state.player.lock().unwrap();
     if let Some(old) = player.take() {
@@ -143,6 +153,129 @@ pub fn reload_current_track(state: &AudioState) -> Result<(), String> {
     Ok(())
 }
 
+pub async fn crossfade_file(
+    path: String,
+    fade_secs: f64,
+    normalization_cache_dir: Option<PathBuf>,
+    normalization_cache_key: Option<String>,
+    start_paused: bool,
+    app: AppHandle,
+    state: State<'_, AudioState>,
+) -> Result<AudioLoadResult, String> {
+    let fade_secs = fade_secs.clamp(1.0, 12.0);
+    let bytes = task::spawn_blocking({
+        let path = path.clone();
+        move || std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+    })
+    .await
+    .map_err(|e| format!("audio file read task failed: {e}"))??;
+
+    abort_crossfade(&state);
+
+    let outgoing = state.player.lock().unwrap().take();
+    let Some(outgoing) = outgoing else {
+        return load_file(
+            path,
+            normalization_cache_dir,
+            normalization_cache_key,
+            start_paused,
+            state,
+        )
+        .await;
+    };
+
+    let outgoing_holder: std::sync::Arc<std::sync::Mutex<Option<rodio::Player>>> =
+        std::sync::Arc::new(std::sync::Mutex::new(Some(outgoing)));
+    *state.crossfade_outgoing.lock().unwrap() = Some(outgoing_holder.clone());
+
+    let mixer = state.mixer.lock().unwrap().clone();
+    let target_vol = *state.volume.lock().unwrap();
+    let normalization_enabled = state.normalization_enabled.load(Ordering::Relaxed);
+    let (bytes, incoming, duration_secs, normalization_gain) = build_player_from_bytes(
+        bytes,
+        mixer,
+        0.0,
+        normalization_enabled,
+        normalization_cache_dir,
+        normalization_cache_key,
+        true,
+        state.eq_params.clone(),
+        state.analyser_buffer.clone(),
+    )
+    .await?;
+
+    apply_current_rate(&state, &incoming);
+    if !start_paused {
+        incoming.play();
+    }
+
+    suppress_ended_temporarily(&state);
+    *state.source_bytes.lock().unwrap() = Some(bytes);
+    *state.normalization_gain.lock().unwrap() = normalization_gain;
+    *state.player.lock().unwrap() = Some(incoming);
+    state.has_track.store(true, Ordering::Relaxed);
+    state.ended_notified.store(false, Ordering::Relaxed);
+    state.device_error.store(false, Ordering::Relaxed);
+
+    let fade_id = state.crossfade_id.fetch_add(1, Ordering::Relaxed) + 1;
+    let steps = ((fade_secs * 1000.0) / 16.0).ceil().max(1.0) as u32;
+    let step_ms = ((fade_secs * 1000.0) / steps as f64).max(8.0) as u64;
+    let app_for_fade = app.clone();
+
+    std::thread::spawn(move || {
+        for i in 0..=steps {
+            let cancelled = app_for_fade
+                .try_state::<AudioState>()
+                .map(|audio| audio.crossfade_id.load(Ordering::Relaxed) != fade_id)
+                .unwrap_or(true);
+
+            if cancelled {
+                if let Some(outgoing) = outgoing_holder.lock().unwrap().take() {
+                    outgoing.stop();
+                }
+                if let Some(audio) = app_for_fade.try_state::<AudioState>() {
+                    let mut slot = audio.crossfade_outgoing.lock().unwrap();
+                    if slot
+                        .as_ref()
+                        .is_some_and(|h| std::sync::Arc::ptr_eq(h, &outgoing_holder))
+                    {
+                        *slot = None;
+                    }
+                }
+                return;
+            }
+
+            let t = i as f32 / steps as f32;
+            if let Some(ref outgoing) = *outgoing_holder.lock().unwrap() {
+                outgoing.set_volume(target_vol * (1.0 - t));
+            }
+            if let Some(audio) = app_for_fade.try_state::<AudioState>() {
+                if let Some(incoming) = audio.player.lock().unwrap().as_ref() {
+                    incoming.set_volume(target_vol * t);
+                }
+            }
+
+            if i < steps {
+                std::thread::sleep(Duration::from_millis(step_ms));
+            }
+        }
+        if let Some(outgoing) = outgoing_holder.lock().unwrap().take() {
+            outgoing.stop();
+        }
+        if let Some(audio) = app_for_fade.try_state::<AudioState>() {
+            let mut slot = audio.crossfade_outgoing.lock().unwrap();
+            if slot
+                .as_ref()
+                .is_some_and(|h| std::sync::Arc::ptr_eq(h, &outgoing_holder))
+            {
+                *slot = None;
+            }
+        }
+    });
+
+    Ok(AudioLoadResult { duration_secs })
+}
+
 pub async fn load_file(
     path: String,
     normalization_cache_dir: Option<PathBuf>,
@@ -176,6 +309,72 @@ pub async fn load_file(
     .await?;
 
     commit_loaded_track(&state, bytes, new_player, normalization_gain);
+
+    Ok(AudioLoadResult { duration_secs })
+}
+
+pub async fn swap_source(
+    path: String,
+    position_secs: f64,
+    normalization_cache_dir: Option<PathBuf>,
+    normalization_cache_key: Option<String>,
+    state: State<'_, AudioState>,
+) -> Result<AudioLoadResult, String> {
+    let bytes = task::spawn_blocking({
+        let path = path.clone();
+        move || std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+    })
+    .await
+    .map_err(|e| format!("audio file read task failed: {e}"))??;
+
+    let was_paused = {
+        let player = state.player.lock().unwrap();
+        match player.as_ref() {
+            Some(p) => p.is_paused(),
+            None => return Err("no active track to swap".into()),
+        }
+    };
+
+    let mixer = state.mixer.lock().unwrap().clone();
+    let vol = *state.volume.lock().unwrap();
+    let normalization_enabled = state.normalization_enabled.load(Ordering::Relaxed);
+
+    let (bytes, new_player, duration_secs, normalization_gain) = build_player_from_bytes(
+        bytes,
+        mixer,
+        vol,
+        normalization_enabled,
+        normalization_cache_dir,
+        normalization_cache_key,
+        true,
+        state.eq_params.clone(),
+        state.analyser_buffer.clone(),
+    )
+    .await?;
+
+    if position_secs > 0.0 {
+        new_player
+            .try_seek(std::time::Duration::from_secs_f64(position_secs))
+            .ok();
+    }
+    apply_current_rate(&state, &new_player);
+
+    suppress_ended_temporarily(&state);
+    let old = state.player.lock().unwrap().replace(new_player);
+    if let Some(old) = old {
+        old.stop();
+    }
+    *state.source_bytes.lock().unwrap() = Some(bytes);
+    *state.normalization_gain.lock().unwrap() = normalization_gain;
+    state.has_track.store(true, Ordering::Relaxed);
+    state.ended_notified.store(false, Ordering::Relaxed);
+    state.device_error.store(false, Ordering::Relaxed);
+
+    if !was_paused {
+        if let Some(p) = state.player.lock().unwrap().as_ref() {
+            p.play();
+        }
+    }
 
     Ok(AudioLoadResult { duration_secs })
 }
@@ -282,15 +481,14 @@ pub async fn load_url(
 }
 
 pub fn play(state: State<'_, AudioState>) {
-    // If the device errored (sleep/wake, headphone unplug), reconnect immediately
-    // instead of waiting for stall detection (2s delay).
+
     if state.device_error.load(Ordering::Relaxed) {
         state
             .audio_tx
             .send(crate::audio::types::AudioThreadCmd::Reconnect)
             .ok();
     }
-    // Always unpause so reload_current_track sees was_paused=false
+
     if let Ok(player) = state.player.try_lock() {
         if let Some(ref player) = *player {
             player.play();
@@ -299,6 +497,7 @@ pub fn play(state: State<'_, AudioState>) {
 }
 
 pub fn pause(state: State<'_, AudioState>) {
+    abort_crossfade(&state);
     if let Ok(player) = state.player.try_lock() {
         if let Some(ref player) = *player {
             player.pause();
@@ -307,6 +506,7 @@ pub fn pause(state: State<'_, AudioState>) {
 }
 
 pub fn stop(state: State<'_, AudioState>) {
+    abort_crossfade(&state);
     state.has_track.store(false, Ordering::Relaxed);
     state.load_gen.fetch_add(1, Ordering::Relaxed);
     if let Ok(mut player) = state.player.try_lock() {
@@ -330,7 +530,6 @@ pub fn seek(position: f64, state: State<'_, AudioState>) -> Result<(), String> {
         .map(|player| player.is_paused())
         .unwrap_or(false);
 
-    // For position 0, always recreate the player to avoid decoder state issues
     if position > 0.0 {
         let player = state.player.lock().unwrap();
         if let Some(ref player) = *player {

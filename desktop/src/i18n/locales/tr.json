@@ -6,8 +6,19 @@
     "offline": "Offline",
     "following": "Takip Edilenler",
     "settings": "Ayarlar",
+    "likedTracks": "Begenilen Parcalar",
+    "mySc": "My SC",
     "collapse": "Daralt",
-    "expand": "Genislet"
+    "expand": "Genislet",
+    "expandSidebar": "Kenar cubugunu ac",
+    "collapseSidebar": "Kenar cubugunu daralt"
+  },
+  "mySc": {
+    "title": "My SoundCloud",
+    "titlePrefix": "My",
+    "subtitle": "CS2 · Faceit",
+    "paused": "Duraklatildi",
+    "startPlaying": "Parca cal"
   },
   "sidebar": {
     "quickAccess": "Hizli Erisim",
@@ -47,10 +58,12 @@
   },
   "search": {
     "placeholder": "Parca, calma listesi, kullanici ara...",
+    "topPlaceholder": "Ne dinlemek istersin?",
     "tracks": "Parcalar",
     "playlists": "Calma listeleri",
     "users": "Kullanicilar",
-    "noResults": "Sonuc bulunamadi"
+    "noResults": "Sonuc bulunamadi",
+    "showAll": "Tum sonuclari goster"
   },
   "track": {
     "comments": "Yorumlar",
@@ -175,7 +188,20 @@
     "discover": "Kesfet",
     "startListening": "Dinlemeye Basla",
     "startLikingTitle": "Parçaları beğenin — burada daha fazla müzik görünecek",
-    "startLikingDesc": "Ne kadar çok beğeni, o kadar iyi öneriler ve daha zengin ana sayfa"
+    "startLikingDesc": "Ne kadar çok beğeni, o kadar iyi öneriler ve daha zengin ana sayfa",
+    "quickAccess": "Hızlı erişim",
+    "quickLikes": "Beğenilen şarkılar",
+    "quickShuffle": "Akıştan karıştır",
+    "feedShuffle": "Akıştan rastgele",
+    "likedPlaylists": "Beğenilen çalma listeleri",
+    "playlistShelf": {
+      "cs2faceit": "CS2 Faceit",
+      "cs2": "CS2 Playlist",
+      "phonk": "Phonk & drift",
+      "russian": "Rus rap",
+      "bass": "Bass boosted",
+      "chill": "Chill mix"
+    }
   },
   "soundwave": {
     "tagline": "Kişisel radyon — tam sana göre",
@@ -292,6 +318,9 @@
     "discordRpcButtonDesc": "Parcayi SoundCloud'da acan dugmeyi goster",
     "normalizeVolume": "Ses duzeyi dengeleme",
     "normalizeVolumeDesc": "Sessiz ve yuksek parcarlari daha esit bir seviyeye getirir",
+    "crossfade": "Parca gecisi",
+    "crossfadeDesc": "Kuyruktaki parcalar arasinda yumusak gecis",
+    "crossfadeSec": "{{count}} sn",
     "highQualityStreaming": "Yuksek kalite akis",
     "highQualityStreamingDesc": "Oynatma sirasinda mevcut en yuksek kaliteyi tercih et",
     "bypassWhitelist": "Beyaz listeleri atla",

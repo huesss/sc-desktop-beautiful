@@ -89,9 +89,7 @@ pub async fn sync(pg: &PgPool, tracks: &mut [Value]) -> AppResult<()> {
             reposts.push(c.reposts_count);
             comments.push(c.comment_count);
         }
-        // ORDER BY u.id keeps row-level locks in the same order across
-        // concurrent transactions inserting overlapping key sets — without it
-        // UNNEST'd batches deadlock under load.
+
         sqlx::query(
             "INSERT INTO sc_track_counters (sc_track_id, play_count, likes_count, reposts_count, comment_count, fetched_at)
              SELECT u.id, u.p, u.l, u.r, u.c, now()

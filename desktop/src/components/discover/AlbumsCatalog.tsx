@@ -45,8 +45,8 @@ function AlbumsCatalogImpl({ aura, query }: AlbumsCatalogProps) {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <FilterRow options={kindOptions} active={kind} onChange={setKind} aura={aura} />
         <FilterRow options={sortOptions} active={sort} onChange={setSort} aura={aura} size="sm" />
       </div>
@@ -107,7 +107,7 @@ const FlatAlbumsView = memo(function FlatAlbumsView({
   const isEmpty = !isInitialLoading && items.length === 0;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3">
       {isInitialLoading ? (
         <SkeletonGrid />
       ) : isEmpty ? (
@@ -151,7 +151,7 @@ const YearGroup = memo(function YearGroup({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col md:flex-row md:gap-8 gap-4">
+    <div className="flex flex-col md:flex-row md:gap-8 gap-2">
       <div className="md:w-[200px] md:shrink-0 flex md:flex-col md:items-end items-center md:sticky md:top-24 self-start">
         <div className="flex items-baseline gap-3 md:flex-col md:items-end md:gap-1 min-w-0 max-w-full">
           <span
@@ -166,7 +166,7 @@ const YearGroup = memo(function YearGroup({
           >
             {year}
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/30 md:text-right whitespace-nowrap">
+          <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ffffff99] md:text-right whitespace-nowrap">
             {t('artist.releaseYear')} · {items.length}
           </span>
         </div>
@@ -185,7 +185,7 @@ const RefineHint = memo(function RefineHint() {
   const { t } = useTranslation();
   return (
     <div className="pt-2 pb-4 flex justify-center">
-      <span className="text-[11px] font-medium text-white/35 text-center max-w-[420px] leading-relaxed">
+      <span className="text-[11px] font-medium text-[#ffffff99] text-center max-w-[420px] leading-relaxed">
         {t('discover.capAlbums')}
       </span>
     </div>
@@ -196,7 +196,7 @@ const SkeletonGrid = memo(function SkeletonGrid() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
       {Array.from({ length: 10 }).map((_, i) => (
-        <Skeleton key={i} className="h-[300px] rounded-3xl" />
+        <Skeleton key={i} className="h-[300px] rounded-lg" />
       ))}
     </div>
   );
@@ -206,11 +206,11 @@ const YearBucketsSkeleton = memo(function YearBucketsSkeleton() {
   return (
     <div className="flex flex-col gap-12">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="flex flex-col md:flex-row md:gap-8 gap-4">
-          <Skeleton className="md:w-[200px] h-[64px] rounded-2xl" />
+        <div key={i} className="flex flex-col md:flex-row md:gap-8 gap-2">
+          <Skeleton className="md:w-[200px] h-[64px] rounded-lg" />
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
             {Array.from({ length: 5 }).map((_, j) => (
-              <Skeleton key={j} className="h-[300px] rounded-3xl" />
+              <Skeleton key={j} className="h-[300px] rounded-lg" />
             ))}
           </div>
         </div>
@@ -222,9 +222,9 @@ const YearBucketsSkeleton = memo(function YearBucketsSkeleton() {
 const EmptyAlbums = memo(function EmptyAlbums({ query }: { query: string }) {
   const { t } = useTranslation();
   return (
-    <div className="py-24 flex flex-col items-center gap-4">
+    <div className="py-24 flex flex-col items-center gap-2">
       <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center"
+        className="w-16 h-16 rounded-lg flex items-center justify-center"
         style={{
           background: 'rgba(255,255,255,0.03)',
           border: '0.5px solid rgba(255,255,255,0.06)',
@@ -232,7 +232,7 @@ const EmptyAlbums = memo(function EmptyAlbums({ query }: { query: string }) {
       >
         <Disc3 size={24} className="text-white/15" />
       </div>
-      <p className="text-white/30 text-sm">
+      <p className="text-[#ffffff99] text-sm">
         {query ? t('discover.noMatches', { query }) : t('discover.noAlbums')}
       </p>
     </div>

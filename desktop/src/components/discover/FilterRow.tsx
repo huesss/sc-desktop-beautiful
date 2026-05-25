@@ -28,12 +28,10 @@ function FilterRowImpl<T extends string>({
 
   return (
     <div
-      className="inline-flex items-center gap-1 p-1 rounded-2xl flex-wrap"
+      className="inline-flex items-center gap-1 p-1 rounded-lg flex-wrap"
       style={{
         background: 'rgba(255,255,255,0.03)',
         border: '0.5px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
       }}
     >
       {options.map((opt) => {
@@ -44,7 +42,7 @@ function FilterRowImpl<T extends string>({
             type="button"
             onClick={() => onChange(opt.id)}
             className={`inline-flex items-center gap-1.5 ${padX} ${padY} rounded-xl ${fontSize} font-semibold cursor-pointer transition-colors duration-300 ${
-              isActive ? 'text-white' : 'text-white/45 hover:text-white/80'
+              isActive ? 'text-white' : 'text-[#ffffff99] hover:text-[#ffffff99]'
             }`}
             style={
               isActive

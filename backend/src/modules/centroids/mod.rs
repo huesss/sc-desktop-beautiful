@@ -1,3 +1,3 @@
 pub mod service;
 
-pub use service::{cosine, normalize};
+pub use service::{cosine, normalize, CentroidService};

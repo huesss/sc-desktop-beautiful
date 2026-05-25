@@ -13,11 +13,11 @@ interface ScWaveformJson {
   samples: number[];
 }
 
-/** Convert SC's PNG waveform URL (`_m.png`) to the JSON variant (`_m.json`). */
+
 function normalizeWaveformUrl(raw: string): string | null {
   if (!raw) return null;
-  // Modern field: "https://wave.sndcdn.com/XXXX_m.png" → swap extension to .json.
-  // Legacy field already ends in .json.
+  
+  
   return raw.replace(/\.png(\?.*)?$/i, '.json$1').replace(/^http:\/\//i, 'https://');
 }
 
@@ -35,7 +35,7 @@ async function fetchWaveform(rawUrl: string): Promise<WaveformSamples> {
   return { values: json.samples, height: json.height || 140 };
 }
 
-/** Fetch + cache a track's raw SC waveform JSON. 30-min cache per track URN. */
+
 export function useTrackWaveform(track: Track | null) {
   const rawUrl = track?.waveform_url ?? null;
   return useQuery({

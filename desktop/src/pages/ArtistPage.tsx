@@ -54,14 +54,14 @@ export function ArtistPage() {
   if (detail.isLoading || (!artist && !detail.error)) {
     return (
       <div className="relative w-full min-h-screen flex items-center justify-center">
-        <Loader2 size={28} className="text-white/30 animate-spin" />
+        <Loader2 size={28} className="animate-spin text-accent" />
       </div>
     );
   }
 
   if (detail.error || !artist) {
     return (
-      <div className="relative w-full min-h-screen flex items-center justify-center text-white/40 text-sm">
+      <div className="relative w-full min-h-screen flex items-center justify-center text-[#ffffff99] text-sm">
         {t('common.error')}
       </div>
     );
@@ -90,11 +90,7 @@ export function ArtistPage() {
           <div
             className="rounded-[2rem] p-3 md:p-5"
             style={{
-              background:
-                'linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.015) 100%)',
-              backdropFilter: 'blur(28px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(28px) saturate(160%)',
-              boxShadow:
+              background: '#141414', boxShadow:
                 '0 30px 80px rgba(0,0,0,0.30), inset 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >

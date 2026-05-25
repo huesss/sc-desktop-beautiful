@@ -18,10 +18,10 @@ export interface AuthStatus {
 
 const POLL_MS = 30_000;
 
-/**
- * Состояние авторизации текущей сессии. Включает свежесть токена и счётчики
- * фоновой sync-очереди. Поллится фоном — sync_queue с фронта не дёргаем.
- */
+
+
+
+
 export function useAuthStatus(opts?: { enabled?: boolean }) {
   return useQuery<AuthStatus>({
     queryKey: ['auth', 'status'],

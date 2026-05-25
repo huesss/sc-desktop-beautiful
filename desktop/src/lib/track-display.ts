@@ -88,7 +88,7 @@ export function getDisplayTitle(track: Pick<Track, 'title' | 'enrichment'>): str
 export function useArtistDisplay(track: Pick<Track, 'user' | 'enrichment'>): ArtistDisplay {
   return useMemo(
     () => getArtistDisplay(track),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
     [
       track.user?.username,
       track.enrichment?.primary_artist?.name,
@@ -114,7 +114,7 @@ export function getArtistTarget(track: Pick<Track, 'user' | 'enrichment'>): stri
 export function useDisplayTitle(track: Pick<Track, 'title' | 'enrichment'>): string {
   return useMemo(
     () => getDisplayTitle(track),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
     [
       track.title,
       track.enrichment?.primary_artist?.name,

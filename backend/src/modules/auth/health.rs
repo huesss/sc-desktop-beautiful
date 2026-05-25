@@ -1,12 +1,4 @@
-//! Sliding-window health-метрики per OAuth-app + memoize последних refresh-fail
-//! per session. Цель — погасить retry-storm на /refresh: если SC-прокси сдох,
-//! мы не должны лупить запросы туда же на каждый HTTP-вход; одной ошибки
-//! достаточно, чтобы заглушить 60 секунд следующих попыток.
-//!
-//! Метрики per-app собираются в скользящем окне (`WINDOW_SEC`): счётчики
-//! success/failure хранятся в Redis с TTL=окно. `is_unhealthy` смотрит на
-//! ошибочность за последний период и при наличии стат-значимости (минимум
-//! `MIN_SAMPLES` попыток) считает app плохим.
+
 
 use deadpool_redis::redis::AsyncCommands;
 use deadpool_redis::Pool as RedisPool;
@@ -110,9 +102,6 @@ impl AuthHealthService {
         Ok(())
     }
 
-    /// Batch-чтение health-счётчиков для нескольких apps одним pipeline.
-    /// На login-флоу заменяет 2N последовательных GET (N = число активных
-    /// OAuth-apps).
     pub async fn app_healths(&self, app_ids: &[String]) -> AppResult<HashMap<String, AppHealth>> {
         if app_ids.is_empty() {
             return Ok(HashMap::new());
@@ -139,8 +128,6 @@ impl AuthHealthService {
         Ok(out)
     }
 
-    /// Запомнить последний refresh-fail для сессии. Следующий запрос на refresh
-    /// в течение TTL отдаст эту ошибку без обращения к SC.
     pub async fn cache_refresh_failure(
         &self,
         session_id: &str,

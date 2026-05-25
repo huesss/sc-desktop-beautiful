@@ -20,13 +20,9 @@ pub struct S3Config {
 
 #[derive(Clone, Debug)]
 pub enum GdriveAuth {
-    /// JSON service-account ключа (как из GCP Console). Работает только с Shared Drive
-    /// или domain-wide delegation — в личный My Drive Google запрещает с 2024.
+
     ServiceAccount(String),
-    /// OAuth user creds: client_id + client_secret (от Desktop OAuth-app в GCP)
-    /// + refresh_token живого Google-аккаунта (получается один раз через consent flow,
-    /// см. tools/get-refresh-token.sh). Файлы пишутся в My Drive этого юзера и
-    /// занимают его квоту (или его долю в Google One family pool).
+
     UserOAuth {
         client_id: String,
         client_secret: String,
@@ -37,13 +33,9 @@ pub enum GdriveAuth {
 #[derive(Clone, Debug)]
 pub struct GdriveConfig {
     pub auth: GdriveAuth,
-    /// ID папки в Drive, в которой лежат `{filename}.m4a` файлы (плоско, без подпапок).
-    /// Для ServiceAccount-варианта папка должна быть расшарена с `client_email` SA
-    /// (Content Manager / Editor). Для UserOAuth-варианта — папка в My Drive самого юзера
-    /// (или расшаренная с него).
+
     pub root_folder_id: String,
-    /// Если папка лежит в Shared Drive — указать его ID, чтобы list-запросы
-    /// шли в `corpora=drive` (поиск работает иначе на shared vs personal).
+
     pub shared_drive_id: Option<String>,
 }
 
@@ -52,36 +44,32 @@ pub struct Config {
     pub port: u16,
     pub admin_token: String,
     pub storage_path: String,
-    /// Корень рабочего tmp. Внутри держим `source/` (сырые аплоады)
-    /// и `result/` (выходы ffmpeg, ждущие отгрузки в backend).
+
     pub tmp_path: String,
     pub ffmpeg_bin: String,
     pub ffprobe_bin: String,
-    /// Макс. одновременных ffmpeg-процессов. Каждый процесс обрабатывает
-    /// батч из `transcode_batch_size` треков за один вызов.
+
     pub max_transcodes: usize,
-    /// Сколько треков склеиваем в один ffmpeg-вызов.
+
     pub transcode_batch_size: usize,
-    /// Сколько ждём добор батча, прежде чем стрелять ffmpeg-ом.
+
     pub transcode_batch_wait_ms: u64,
-    /// Параллельные backend-загрузки (S3 PUT / local rename).
+
     pub upload_concurrency: usize,
-    /// Сколько раз ретраить одну backend-загрузку (на ошибки).
+
     pub upload_retries: usize,
-    /// База exponential backoff между ретраями загрузки.
+
     pub upload_retry_base_ms: u64,
-    /// Лимит общего размера source-каталога. None = без лимита.
+
     pub tmp_max_bytes: Option<u64>,
-    /// Если true — `/upload` отдаёт 503. Для хостов-раздатчиков без ffmpeg.
+
     pub disable_upload: bool,
     pub backend: BackendKind,
     pub s3: Option<S3Config>,
     pub gdrive: Option<GdriveConfig>,
-    /// JetStream URL для публикации `storage.track_uploaded`. Пусто = no-op.
+
     pub nats_url: String,
-    /// Базовый URL для composing redirect-ссылок в payload события.
-    /// Должен совпадать с `STORAGE_PUBLIC_URL` в стриминге/бэке (обычно публичный домен сервиса).
-    /// Пусто = публикация события skip'ается (нет читаемого URL для воркера).
+
     pub event_base_url: String,
 }
 

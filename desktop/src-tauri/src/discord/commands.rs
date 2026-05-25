@@ -5,7 +5,9 @@ use discord_rich_presence::{
     DiscordIpc, DiscordIpcClient,
 };
 
-use crate::shared::constants::DISCORD_CLIENT_ID;
+use crate::shared::constants::{DISCORD_CLIENT_ID, DISCORD_SOUNDCLOUD_LOGO_URL};
+
+const DISCORD_FIELD_MAX: usize = 128;
 
 pub struct DiscordState {
     pub client: Mutex<Option<DiscordIpcClient>>,
@@ -83,22 +85,34 @@ pub fn discord_set_activity(
     let mode = track.mode.unwrap_or(DiscordRpcMode::Track);
     let show_button = track.show_button.unwrap_or(true);
 
-    let large_image = track.artwork_url.as_deref().unwrap_or("soundcloud_logo");
+    let title = truncate_discord_field(&track.title, DISCORD_FIELD_MAX);
+    let artist = truncate_discord_field(&track.artist, DISCORD_FIELD_MAX);
 
-    let assets = Assets::new().large_image(large_image);
+    let assets = Assets::new()
+        .large_image(DISCORD_SOUNDCLOUD_LOGO_URL)
+        .small_text(artist);
+
+    let assets = if let Some(artwork) = track.artwork_url.as_deref() {
+        assets.small_image(artwork)
+    } else {
+        assets
+    };
 
     let mut activity = Activity::new()
         .activity_type(ActivityType::Listening)
         .assets(assets);
 
     activity = match mode {
-        DiscordRpcMode::Track => activity.details(&track.title).state(if is_playing {
-            track.artist.as_str()
-        } else {
-            "Paused"
-        }),
+        DiscordRpcMode::Track => {
+            let activity = activity.details(title);
+            if is_playing {
+                activity
+            } else {
+                activity.state("Paused")
+            }
+        }
         DiscordRpcMode::Artist => {
-            let activity = activity.details(&track.artist);
+            let activity = activity.details(artist);
             if is_playing {
                 activity
             } else {
@@ -148,4 +162,15 @@ pub fn discord_clear_activity(state: tauri::State<'_, Arc<DiscordState>>) -> Res
             .map_err(|e| format!("clear_activity: {e}"))?;
     }
     Ok(())
+}
+
+fn truncate_discord_field(value: &str, max_chars: usize) -> &str {
+    if value.len() <= max_chars {
+        return value;
+    }
+    let mut end = max_chars;
+    while end > 0 && !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    &value[..end]
 }

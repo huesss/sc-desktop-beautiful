@@ -3,6 +3,19 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { CallProxySection } from '../components/settings/CallProxySection.tsx';
+import {
+  SettingsChip,
+  SettingsChipGroup,
+  SettingsGroup,
+  SettingsInset,
+  SettingsOutlineButton,
+  SettingsPage,
+  SettingsRow,
+  SettingsRowInner,
+  SettingsActions,
+  SettingsTextButton,
+  SettingsToggle,
+} from '../components/settings/settings-ui';
 import { Skeleton } from '../components/ui/Skeleton.tsx';
 import { changeAppLanguage } from '../i18n';
 import { switchAudioDevice } from '../lib/audio';
@@ -42,8 +55,47 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+function SettingSwitchRow({
+  label,
+  description,
+  checked,
+  onChange,
+  disabled,
+  trailing,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <SettingsRow>
+      <SettingsRowInner
+        label={label}
+        description={description}
+        trailing={
+          trailing ?? (
+            <SettingsToggle checked={checked} onChange={onChange} disabled={disabled} />
+          )
+        }
+      />
+    </SettingsRow>
+  );
+}
+
+function PremiumStarBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-purple-300/90">
+      <Star size={10} fill="currentColor" className="text-amber-400" />
+      Star
+    </span>
+  );
+}
+
 const PRESET_COLORS = [
-  '#ff5500',
+  '#008736',
   '#ff3366',
   '#7c3aed',
   '#3b82f6',
@@ -74,37 +126,32 @@ const DISCORD_RPC_MODES: Array<{ id: DiscordRpcMode; labelKey: string }> = [
   { id: 'activity', labelKey: 'settings.discordRpcModeActivity' },
 ];
 
-/* ── Language Section ─────────────────────────────────────── */
+
 
 const LanguageSection = React.memo(function LanguageSection() {
   const { t, i18n } = useTranslation();
 
   return (
-    <section className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-[60px] rounded-3xl p-6 shadow-xl">
-      <h3 className="text-[15px] font-bold text-white/80 tracking-tight mb-4">
-        {t('settings.language')}
-      </h3>
-      <div className="flex gap-2">
+    <SettingsGroup title={t('settings.language')}>
+      <SettingsChipGroup>
         {LANGUAGES.map((lang) => (
-          <button
+          <SettingsChip
             key={lang.code}
+            active={i18n.language === lang.code}
             onClick={() => void changeAppLanguage(lang.code)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 cursor-pointer border ${
-              i18n.language === lang.code
-                ? 'bg-white/[0.1] text-white/90 border-white/[0.15]'
-                : 'bg-white/[0.02] text-white/40 border-white/[0.05] hover:bg-white/[0.06] hover:text-white/60'
-            }`}
           >
-            <Globe size={14} strokeWidth={1.8} />
-            {lang.label}
-          </button>
+            <span className="inline-flex items-center gap-2">
+              <Globe size={14} strokeWidth={1.8} />
+              {lang.label}
+            </span>
+          </SettingsChip>
         ))}
-      </div>
-    </section>
+      </SettingsChipGroup>
+    </SettingsGroup>
   );
 });
 
-/* ── Cache Section ──────────────────────────────────────── */
+
 
 function CacheRow({
   label,
@@ -120,26 +167,22 @@ function CacheRow({
   t: (k: string) => string;
 }) {
   return (
-    <div className="flex items-center justify-between py-3">
-      <div className="flex items-center gap-4">
-        <div>
-          <p className="text-[13px] text-white/60 font-medium">{label}</p>
-
-          <div className="h-[25px] flex items-center">
-            {size === null ? (
-              <Skeleton className="w-25 h-[20px]" />
-            ) : (
-              <p className="text-[17px] font-bold text-white/90 tabular-nums">
-                {formatBytes(size)}
-              </p>
-            )}
-          </div>
+    <div className="flex items-center justify-between px-4 py-3.5">
+      <div>
+        <p className="text-[14px] font-medium text-white">{label}</p>
+        <div className="mt-0.5 h-6 flex items-center">
+          {size === null ? (
+            <Skeleton className="h-4 w-16" />
+          ) : (
+            <p className="text-[15px] font-semibold tabular-nums text-white/80">{formatBytes(size)}</p>
+          )}
         </div>
       </div>
       <button
+        type="button"
         onClick={onClear}
         disabled={clearing || size === 0}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/10 hover:border-red-500/20 transition-all duration-300 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+        className="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12px] font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
       >
         {clearing ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
         {t('settings.clearCache')}
@@ -311,53 +354,49 @@ const CacheSection = React.memo(function CacheSection() {
       : 0;
 
   return (
-    <section className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-[60px] rounded-3xl p-6 shadow-xl space-y-2">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-[15px] font-bold text-white/80 tracking-tight">
-          {t('settings.cache')}
-        </h3>
+    <SettingsGroup
+      title={t('settings.cache')}
+      description={
+        audioSize !== null && imagesSize !== null && likedSize !== null
+          ? `${t('settings.total')}: ${formatBytes(totalSize)}`
+          : undefined
+      }
+    >
+      <SettingsRow>
+        <CacheRow
+          label={t('settings.audioCacheSize')}
+          size={audioSize}
+          clearing={clearingAudio}
+          onClear={handleClearAudio}
+          t={t}
+        />
+      </SettingsRow>
+      <SettingsRow>
+        <CacheRow
+          label={t('settings.assetsCacheSize')}
+          size={imagesSize}
+          clearing={clearingImages}
+          onClear={handleClearImages}
+          t={t}
+        />
+      </SettingsRow>
+      <SettingsRow>
+        <CacheRow
+          label={t('settings.likedCacheSize')}
+          size={likedSize}
+          clearing={clearingLiked}
+          onClear={handleClearLiked}
+          t={t}
+        />
+      </SettingsRow>
 
-        <div className="min-w-[80px] flex justify-end">
-          {audioSize !== null && imagesSize !== null && likedSize !== null ? (
-            <span className="text-[12px] text-white/30 tabular-nums">
-              {t('settings.total')}: {formatBytes(totalSize)}
-            </span>
-          ) : (
-            <Skeleton className="h-[12px] w-[80px]" />
-          )}
-        </div>
-      </div>
-      <CacheRow
-        label={t('settings.audioCacheSize')}
-        size={audioSize}
-        clearing={clearingAudio}
-        onClear={handleClearAudio}
-        t={t}
-      />
-      <div className="border-t border-white/[0.04]" />
-      <CacheRow
-        label={t('settings.assetsCacheSize')}
-        size={imagesSize}
-        clearing={clearingImages}
-        onClear={handleClearImages}
-        t={t}
-      />
-      <div className="border-t border-white/[0.04]" />
-      <CacheRow
-        label={t('settings.likedCacheSize')}
-        size={likedSize}
-        clearing={clearingLiked}
-        onClear={handleClearLiked}
-        t={t}
-      />
-
-      <div className="pt-2 space-y-2">
-        <p className="text-[11px] text-white/30">{t('settings.cacheLikesDesc')}</p>
+      <SettingsInset>
+        <p className="text-[12px] leading-snug text-white/45">{t('settings.cacheLikesDesc')}</p>
         {cachingLikes ? (
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-[12px] text-white/60">
+            <div className="flex items-center justify-between text-[12px] text-[#ffffff99]">
               <span className="flex items-center gap-2">
-                <Loader2 size={12} className="animate-spin" />
+                <Loader2 size={12} className="animate-spin text-accent" />
                 {progress
                   ? t('settings.cacheLikesProgress', {
                       done: progress.done,
@@ -377,49 +416,48 @@ const CacheSection = React.memo(function CacheSection() {
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <button
-              onClick={handleCancelCacheLikes}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold bg-white/[0.04] text-white/60 hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.12] transition-all duration-200 cursor-pointer"
-            >
-              <X size={12} />
-              {t('common.cancel')}
-            </button>
+            <SettingsTextButton onClick={handleCancelCacheLikes}>
+              <span className="inline-flex items-center gap-1.5">
+                <X size={12} />
+                {t('common.cancel')}
+              </span>
+            </SettingsTextButton>
           </div>
         ) : (
-          <button
-            onClick={handleCacheLikes}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold bg-white/[0.06] text-white/75 hover:bg-white/[0.1] border border-white/[0.06] hover:border-white/[0.12] transition-all duration-200 cursor-pointer"
-          >
-            <Download size={12} />
-            {t('settings.cacheLikes')}
-          </button>
+          <SettingsOutlineButton onClick={handleCacheLikes}>
+            <span className="inline-flex items-center gap-1.5">
+              <Download size={12} />
+              {t('settings.cacheLikes')}
+            </span>
+          </SettingsOutlineButton>
         )}
-      </div>
+      </SettingsInset>
 
-      <div className="border-t border-white/[0.04]" />
-      <div className="pt-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[13px] text-white/60 font-medium">{t('settings.audioCacheLimit')}</p>
-            <p className="text-[11px] text-white/30 mt-0.5">{t('settings.audioCacheLimitDesc')}</p>
+      <SettingsRow divider={false}>
+        <div className="space-y-3 px-4 py-3.5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[14px] font-medium text-white">{t('settings.audioCacheLimit')}</p>
+              <p className="mt-0.5 text-[12px] text-white/45">{t('settings.audioCacheLimitDesc')}</p>
+            </div>
+            <span className="shrink-0 text-[12px] tabular-nums text-white/50">{limitLabel}</span>
           </div>
-          <span className="text-[12px] text-white/30 tabular-nums">{limitLabel}</span>
+          <input
+            type="range"
+            min={0}
+            max={8192}
+            step={256}
+            value={audioCacheLimitMB}
+            onChange={(e) => setAudioCacheLimitMB(Number(e.target.value))}
+            className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-accent"
+          />
         </div>
-        <input
-          type="range"
-          min={0}
-          max={8192}
-          step={256}
-          value={audioCacheLimitMB}
-          onChange={(e) => setAudioCacheLimitMB(Number(e.target.value))}
-          className="w-full accent-[var(--color-accent)] h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
-        />
-      </div>
-    </section>
+      </SettingsRow>
+    </SettingsGroup>
   );
 });
 
-/* ── Wallpaper Picker ───────────────────────────────────── */
+
 
 const WallpaperPicker = React.memo(function WallpaperPicker() {
   const { t } = useTranslation();
@@ -495,35 +533,33 @@ const WallpaperPicker = React.memo(function WallpaperPicker() {
   );
 
   return (
-    <div className="space-y-3">
-      <label className="text-[13px] text-white/50 font-medium">
-        {t('settings.backgroundImage')}
-      </label>
+    <div className="space-y-3 pt-1">
+      <p className="text-[12px] font-medium text-white/55">{t('settings.backgroundImage')}</p>
 
-      {/* Wallpaper grid */}
+      {}
       <div className="flex flex-wrap gap-3">
-        {/* "None" option */}
+        {}
         <button
           onClick={() => setBackgroundImage('')}
-          className={`w-20 h-14 rounded-xl border-2 transition-all duration-200 cursor-pointer flex items-center justify-center ${
+          className={`flex h-14 w-20 cursor-pointer items-center justify-center rounded-md border transition-colors ${
             !backgroundImage
-              ? 'border-white/40 bg-white/[0.08]'
-              : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]'
+              ? 'border-white/25 bg-white/[0.08]'
+              : 'border-white/[0.08] hover:border-white/15'
           }`}
         >
-          <span className="text-[10px] text-white/40 font-semibold">{t('settings.none')}</span>
+          <span className="text-[10px] text-[#ffffff99] font-semibold">{t('settings.none')}</span>
         </button>
 
-        {/* Saved wallpapers */}
+        {}
         {wallpapers.map((name) => {
           const url = getWallpaperUrl(name);
           return (
             <div
               key={name}
-              className={`relative group w-20 h-14 rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-pointer ${
+              className={`group relative h-14 w-20 cursor-pointer overflow-hidden rounded-md border transition-colors ${
                 backgroundImage === name
-                  ? 'border-white/40 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
-                  : 'border-white/[0.06] hover:border-white/[0.15]'
+                  ? 'border-white/25'
+                  : 'border-white/[0.08] hover:border-white/15'
               }`}
               onClick={() => handleSelect(name)}
             >
@@ -547,18 +583,18 @@ const WallpaperPicker = React.memo(function WallpaperPicker() {
         })}
 
         {loading && (
-          <div className="w-20 h-14 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-center">
+          <div className="flex h-14 w-20 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.02]">
             <Loader2 size={14} className="animate-spin text-white/20" />
           </div>
         )}
 
-        {/* Add from file */}
+        {}
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="w-20 h-14 rounded-xl border-2 border-dashed border-white/[0.1] hover:border-white/[0.2] transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 hover:bg-white/[0.02]"
+          className="flex h-14 w-20 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-dashed border-white/[0.1] transition-colors hover:border-white/20 hover:bg-white/[0.04]"
         >
-          <span className="text-[14px] text-white/30 font-light leading-none">+</span>
-          <span className="text-[9px] text-white/25 font-medium">{t('settings.addFile')}</span>
+          <span className="text-[14px] text-[#ffffff99] font-light leading-none">+</span>
+          <span className="text-[9px] text-[#ffffff99] font-medium">{t('settings.addFile')}</span>
         </button>
         <input
           ref={fileInputRef}
@@ -568,21 +604,21 @@ const WallpaperPicker = React.memo(function WallpaperPicker() {
           className="hidden"
         />
 
-        {/* Add from URL */}
+        {}
         <button
           onClick={() => setShowUrlInput(!showUrlInput)}
-          className={`w-20 h-14 rounded-xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+          className={`flex h-14 w-20 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-dashed transition-colors ${
             showUrlInput
-              ? 'border-white/[0.2] bg-white/[0.04]'
-              : 'border-white/[0.1] hover:border-white/[0.2] hover:bg-white/[0.02]'
+              ? 'border-white/20 bg-white/[0.06]'
+              : 'border-white/[0.1] hover:border-white/20 hover:bg-white/[0.04]'
           }`}
         >
-          <Link size={12} className="text-white/30" />
-          <span className="text-[9px] text-white/25 font-medium">URL</span>
+          <Link size={12} className="text-[#ffffff99]" />
+          <span className="text-[9px] text-[#ffffff99] font-medium">URL</span>
         </button>
       </div>
 
-      {/* URL download input */}
+      {}
       {showUrlInput && (
         <div className="flex gap-2 animate-fade-in-up">
           <input
@@ -591,23 +627,21 @@ const WallpaperPicker = React.memo(function WallpaperPicker() {
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleDownloadUrl()}
             placeholder={t('settings.bgUrlPlaceholder')}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-[13px] text-white/80 placeholder:text-white/20 focus:border-white/[0.12] focus:bg-white/[0.06] transition-all duration-200 outline-none"
+            className="flex-1 rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[13px] text-white/80 outline-none transition-colors placeholder:text-white/25 focus:border-white/15"
             autoFocus
           />
           <button
             onClick={handleDownloadUrl}
             disabled={downloading || !urlInput.trim()}
-            className="px-4 py-2.5 rounded-xl text-[12px] font-semibold bg-white/[0.08] text-white/70 hover:bg-white/[0.12] border border-white/[0.06] transition-all disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+            className="btn-secondary h-9 px-4 text-[12px] disabled:opacity-30"
           >
-            {downloading ? <Loader2 size={14} className="animate-spin" /> : t('settings.download')}
+            {downloading ? <Loader2 size={14} className="animate-spin text-accent" /> : t('settings.download')}
           </button>
         </div>
       )}
     </div>
   );
 });
-
-/* ── Theme Section ──────────────────────────────────────── */
 
 const THEME_PRESET_KEYS = ['soundcloud', 'dark', 'neon', 'forest', 'crimson'] as const;
 
@@ -627,22 +661,18 @@ const ThemeSection = React.memo(function ThemeSection() {
   const colorInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <section className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-[60px] rounded-3xl p-6 shadow-xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[15px] font-bold text-white/80 tracking-tight">
-          {t('settings.appearance')}
-        </h3>
+    <SettingsGroup title={t('settings.appearance')}>
+      <div className="flex justify-end border-b border-white/[0.06] px-4 py-2">
         <button
+          type="button"
           onClick={resetTheme}
-          className="text-[12px] text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+          className="cursor-pointer text-[12px] text-white/45 transition-colors hover:text-white/70"
         >
           {t('settings.resetDefaults')}
         </button>
       </div>
-
-      {/* Theme Presets */}
-      <div className="space-y-3">
-        <label className="text-[13px] text-white/50 font-medium">{t('settings.themePreset')}</label>
+      <SettingsInset>
+        <p className="text-[12px] font-medium text-white/55">{t('settings.themePreset')}</p>
         <div className="grid grid-cols-3 gap-3">
           {THEME_PRESET_KEYS.map((id) => {
             const def = THEME_PRESETS[id];
@@ -651,10 +681,10 @@ const ThemeSection = React.memo(function ThemeSection() {
               <button
                 key={id}
                 onClick={() => setThemePreset(id)}
-                className={`group relative rounded-2xl overflow-hidden border transition-all duration-200 cursor-pointer hover:scale-[1.03] active:scale-[0.97] ${
+                className={`group relative cursor-pointer overflow-hidden rounded-md border transition-colors ${
                   isActive
-                    ? 'border-white/30 ring-1 ring-white/20'
-                    : 'border-white/[0.06] hover:border-white/15'
+                    ? 'border-white/25 bg-white/[0.06]'
+                    : 'border-white/[0.08] hover:border-white/15'
                 }`}
               >
                 <div
@@ -670,9 +700,9 @@ const ThemeSection = React.memo(function ThemeSection() {
                     style={{ backgroundColor: def.preview[2] }}
                   />
                 </div>
-                <div className="px-3 py-2 bg-white/[0.03] text-center">
+                <div className="px-3 py-2 bg-white/[.03] text-center">
                   <span
-                    className={`text-[12px] font-medium ${isActive ? 'text-white/90' : 'text-white/50'}`}
+                    className={`text-[12px] font-medium ${isActive ? 'text-white' : 'text-[#ffffff99]'}`}
                   >
                     {def.name}
                   </span>
@@ -685,34 +715,30 @@ const ThemeSection = React.memo(function ThemeSection() {
               setThemePreset('custom');
               colorInputRef.current?.click();
             }}
-            className={`group relative rounded-2xl overflow-hidden border border-dashed transition-all duration-200 cursor-pointer hover:scale-[1.03] active:scale-[0.97] ${
+            className={`group relative cursor-pointer overflow-hidden rounded-md border border-dashed transition-colors ${
               themePreset === 'custom'
-                ? 'border-white/30 bg-white/[0.04]'
-                : 'border-white/[0.1] hover:border-white/20'
+                ? 'border-white/25 bg-white/[0.04]'
+                : 'border-white/[0.1] hover:border-white/15'
             }`}
           >
             <div className="h-16 flex items-center justify-center">
-              <span className="text-[20px] text-white/30 group-hover:text-white/50 transition-colors">
+              <span className="text-[20px] text-[#ffffff99] group-hover:text-[#ffffff99] transition-colors">
                 +
               </span>
             </div>
-            <div className="px-3 py-2 bg-white/[0.02] text-center">
+            <div className="px-3 py-2 bg-[#0a0a0a] text-center">
               <span
-                className={`text-[12px] font-medium ${themePreset === 'custom' ? 'text-white/90' : 'text-white/40'}`}
+                className={`text-[12px] font-medium ${themePreset === 'custom' ? 'text-white' : 'text-[#ffffff99]'}`}
               >
                 {t('settings.themeCustom')}
               </span>
             </div>
           </button>
         </div>
-      </div>
 
-      {/* Accent Color (for custom) */}
       {themePreset === 'custom' && (
-        <div className="space-y-3">
-          <label className="text-[13px] text-white/50 font-medium">
-            {t('settings.accentColor')}
-          </label>
+        <div className="space-y-2 pt-1">
+          <p className="text-[12px] font-medium text-white/55">{t('settings.accentColor')}</p>
           <div className="flex items-center gap-2 flex-wrap">
             {PRESET_COLORS.map((color) => (
               <button
@@ -728,7 +754,7 @@ const ThemeSection = React.memo(function ThemeSection() {
             ))}
             <button
               onClick={() => colorInputRef.current?.click()}
-              className="w-8 h-8 rounded-full border-2 border-dashed border-white/20 hover:border-white/40 transition-all cursor-pointer flex items-center justify-center text-white/30 hover:text-white/60 hover:scale-110"
+              className="w-8 h-8 rounded-full border-2 border-dashed border-white/20 hover:border-white/40 transition-all cursor-pointer flex items-center justify-center text-[#ffffff99] hover:text-[#ffffff99] hover:scale-110"
             >
               <span className="text-[11px] font-bold">+</span>
             </button>
@@ -743,17 +769,13 @@ const ThemeSection = React.memo(function ThemeSection() {
         className="sr-only"
       />
 
-      {/* Background Image */}
       <WallpaperPicker />
 
-      {/* Background Darkness */}
       {backgroundImage && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-[13px] text-white/50 font-medium">
-              {t('settings.bgOpacity')}
-            </label>
-            <span className="text-[12px] text-white/30 tabular-nums">
+            <p className="text-[12px] font-medium text-white/55">{t('settings.bgOpacity')}</p>
+            <span className="text-[12px] tabular-nums text-white/45">
               {Math.round(backgroundOpacity * 100)}%
             </span>
           </div>
@@ -764,16 +786,16 @@ const ThemeSection = React.memo(function ThemeSection() {
             step={0.01}
             value={backgroundOpacity}
             onChange={(e) => setBackgroundOpacity(Number(e.target.value))}
-            className="w-full accent-[var(--color-accent)] h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
+            className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-accent"
           />
         </div>
       )}
 
       {backgroundImage && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-[13px] text-white/50 font-medium">{t('settings.bgBlur')}</label>
-            <span className="text-[12px] text-white/30 tabular-nums">{backgroundBlur}px</span>
+            <p className="text-[12px] font-medium text-white/55">{t('settings.bgBlur')}</p>
+            <span className="text-[12px] tabular-nums text-white/45">{backgroundBlur}px</span>
           </div>
           <input
             type="range"
@@ -782,15 +804,16 @@ const ThemeSection = React.memo(function ThemeSection() {
             step={1}
             value={backgroundBlur}
             onChange={(e) => setBackgroundBlur(Number(e.target.value))}
-            className="w-full accent-[var(--color-accent)] h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
+            className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-accent"
           />
         </div>
       )}
-    </section>
+      </SettingsInset>
+    </SettingsGroup>
   );
 });
 
-/* ── Audio Device Section ──────────────────────────────── */
+
 
 interface AudioSink {
   name: string;
@@ -807,7 +830,7 @@ const AudioDeviceSection = React.memo(function AudioDeviceSection() {
     trackedInvoke<AudioSink[]>('audio_list_devices').then(setSinks).catch(console.error);
   }, []);
 
-  // Refresh on mount + when window regains focus (device may have changed)
+  
   useEffect(() => {
     refreshSinks();
     const onFocus = () => refreshSinks();
@@ -833,27 +856,19 @@ const AudioDeviceSection = React.memo(function AudioDeviceSection() {
   if (sinks.length === 0) return null;
 
   return (
-    <section className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-[60px] rounded-3xl p-6 shadow-xl">
-      <h3 className="text-[15px] font-bold text-white/80 tracking-tight mb-4">
-        {t('settings.audioDevice')}
-      </h3>
-      <div className="flex gap-2 flex-wrap">
+    <SettingsGroup title={t('settings.audioDevice')}>
+      <SettingsChipGroup>
         {sinks.map((sink) => (
-          <button
+          <SettingsChip
             key={sink.name}
+            active={sink.is_default}
             onClick={() => handleSwitch(sink.name)}
-            disabled={switching}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 cursor-pointer border ${
-              sink.is_default
-                ? 'bg-white/[0.1] text-white/90 border-white/[0.15]'
-                : 'bg-white/[0.02] text-white/40 border-white/[0.05] hover:bg-white/[0.06] hover:text-white/60'
-            } disabled:opacity-50`}
           >
             {sink.description}
-          </button>
+          </SettingsChip>
         ))}
-      </div>
-    </section>
+      </SettingsChipGroup>
+    </SettingsGroup>
   );
 });
 
@@ -863,36 +878,23 @@ const StartupSection = React.memo(function StartupSection() {
   const setStartupPage = useSettingsStore((s) => s.setStartupPage);
 
   return (
-    <section className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-[60px] rounded-3xl p-6 shadow-xl space-y-4">
-      <div>
-        <h3 className="text-[15px] font-bold text-white/80 tracking-tight">
-          {t('settings.startup')}
-        </h3>
-        <p className="text-[12px] text-white/35 mt-1">{t('settings.startupPageDesc')}</p>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {STARTUP_PAGES.map((page) => {
-          const active = startupPage === page.id;
-          return (
-            <button
-              key={page.id}
-              onClick={() => setStartupPage(page.id)}
-              className={`rounded-2xl border px-4 py-3 text-left transition-all duration-200 cursor-pointer ${
-                active
-                  ? 'border-white/[0.16] bg-white/[0.08] text-white/90'
-                  : 'border-white/[0.05] bg-white/[0.02] text-white/45 hover:bg-white/[0.05] hover:text-white/70'
-              }`}
-            >
-              <span className="text-[13px] font-semibold">{t(page.labelKey)}</span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
+    <SettingsGroup title={t('settings.startup')} description={t('settings.startupPageDesc')}>
+      <SettingsChipGroup>
+        {STARTUP_PAGES.map((page) => (
+          <SettingsChip
+            key={page.id}
+            active={startupPage === page.id}
+            onClick={() => setStartupPage(page.id)}
+          >
+            {t(page.labelKey)}
+          </SettingsChip>
+        ))}
+      </SettingsChipGroup>
+    </SettingsGroup>
   );
 });
 
-/* ── Playback Section ─────────────────────────────────── */
+
 
 const PlaybackSection = React.memo(function PlaybackSection() {
   const { t } = useTranslation();
@@ -902,6 +904,10 @@ const PlaybackSection = React.memo(function PlaybackSection() {
   const setLyricsVisualizer = useSettingsStore((s) => s.setLyricsVisualizer);
   const normalizeVolume = useSettingsStore((s) => s.normalizeVolume);
   const setNormalizeVolume = useSettingsStore((s) => s.setNormalizeVolume);
+  const crossfadeEnabled = useSettingsStore((s) => s.crossfadeEnabled);
+  const setCrossfadeEnabled = useSettingsStore((s) => s.setCrossfadeEnabled);
+  const crossfadeSeconds = useSettingsStore((s) => s.crossfadeSeconds);
+  const setCrossfadeSeconds = useSettingsStore((s) => s.setCrossfadeSeconds);
   const highQualityStreaming = useSettingsStore((s) => s.highQualityStreaming);
   const setHighQualityStreaming = useSettingsStore((s) => s.setHighQualityStreaming);
   const bypassWhitelist = useSettingsStore((s) => s.bypassWhitelist);
@@ -916,277 +922,166 @@ const PlaybackSection = React.memo(function PlaybackSection() {
   const setDiscordRpcMode = useSettingsStore((s) => s.setDiscordRpcMode);
   const discordRpcShowButton = useSettingsStore((s) => s.discordRpcShowButton);
   const setDiscordRpcShowButton = useSettingsStore((s) => s.setDiscordRpcShowButton);
+  const premiumLocked = (
+    <div className="flex items-center gap-2">
+      <PremiumStarBadge />
+      <SettingsToggle checked={false} onChange={() => {}} disabled />
+    </div>
+  );
+
   return (
-    <section className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-[60px] rounded-3xl p-6 shadow-xl space-y-5">
-      <h3 className="text-[15px] font-bold text-white/80 tracking-tight">
-        {t('settings.playback')}
-      </h3>
-
-      {/* Floating Comments */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[13px] text-white/70 font-medium">{t('settings.floatingComments')}</p>
-          <p className="text-[11px] text-white/30 mt-0.5">{t('settings.floatingCommentsDesc')}</p>
-        </div>
-        <button
-          onClick={() => setFloatingComments(!floatingComments)}
-          className={`w-11 h-6 rounded-full transition-all duration-200 cursor-pointer relative ${
-            floatingComments ? 'bg-accent' : 'bg-white/10'
-          }`}
-        >
-          <div
-            className={`absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-all duration-200 ${
-              floatingComments ? 'left-[22px] bg-accent-contrast' : 'left-0.5 bg-white'
-            }`}
-          />
-        </button>
-      </div>
-
-      {/* Lyrics visualizer */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[13px] text-white/70 font-medium">{t('settings.lyricsVisualizer')}</p>
-          <p className="text-[11px] text-white/30 mt-0.5">{t('settings.lyricsVisualizerDesc')}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setLyricsVisualizer(!lyricsVisualizer)}
-          className={`w-11 h-6 rounded-full transition-all duration-200 cursor-pointer relative ${
-            lyricsVisualizer ? 'bg-accent' : 'bg-white/10'
-          }`}
-        >
-          <div
-            className={`absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-all duration-200 ${
-              lyricsVisualizer ? 'left-[22px] bg-accent-contrast' : 'left-0.5 bg-white'
-            }`}
-          />
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[13px] text-white/70 font-medium">{t('settings.normalizeVolume')}</p>
-          <p className="text-[11px] text-white/30 mt-0.5">{t('settings.normalizeVolumeDesc')}</p>
-        </div>
-        <button
-          onClick={() => setNormalizeVolume(!normalizeVolume)}
-          className={`w-11 h-6 rounded-full transition-all duration-200 cursor-pointer relative ${
-            normalizeVolume ? 'bg-accent' : 'bg-white/10'
-          }`}
-        >
-          <div
-            className={`absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-all duration-200 ${
-              normalizeVolume ? 'left-[22px] bg-accent-contrast' : 'left-0.5 bg-white'
-            }`}
-          />
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[13px] text-white/70 font-medium">
-            {t('settings.highQualityStreaming')}
-          </p>
-          <p className="text-[11px] text-white/30 mt-0.5">
-            {t('settings.highQualityStreamingDesc')}
-          </p>
-        </div>
-        {isPremium ? (
-          <button
-            onClick={() => setHighQualityStreaming(!highQualityStreaming)}
-            className={`w-11 h-6 rounded-full transition-all duration-200 cursor-pointer relative ${
-              highQualityStreaming ? 'bg-accent' : 'bg-white/10'
-            }`}
-          >
-            <div
-              className={`absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-all duration-200 ${
-                highQualityStreaming ? 'left-[22px] bg-accent-contrast' : 'left-0.5 bg-white'
-              }`}
-            />
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-purple-300/80"
-              style={{
-                background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(168,85,247,0.12))',
-                border: '0.5px solid rgba(168,85,247,0.25)',
-              }}
-            >
-              <Star size={10} fill="currentColor" className="text-amber-400" />
-              Star
-            </span>
-            <div className="w-11 h-6 rounded-full bg-white/10 relative opacity-40 cursor-not-allowed">
-              <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full shadow-md bg-white" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Bypass Whitelists */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[13px] text-white/70 font-medium">{t('settings.bypassWhitelist')}</p>
-          <p className="text-[11px] text-white/30 mt-0.5">{t('settings.bypassWhitelistDesc')}</p>
-        </div>
-        {isPremium ? (
-          <button
-            onClick={() => setBypassWhitelist(!bypassWhitelist)}
-            className={`w-11 h-6 rounded-full transition-all duration-200 cursor-pointer relative ${
-              bypassWhitelist ? 'bg-accent' : 'bg-white/10'
-            }`}
-          >
-            <div
-              className={`absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-all duration-200 ${
-                bypassWhitelist ? 'left-[22px] bg-accent-contrast' : 'left-0.5 bg-white'
-              }`}
-            />
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-purple-300/80"
-              style={{
-                background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(168,85,247,0.12))',
-                border: '0.5px solid rgba(168,85,247,0.25)',
-              }}
-            >
-              <Star size={10} fill="currentColor" className="text-amber-400" />
-              Star
-            </span>
-            <div className="w-11 h-6 rounded-full bg-white/10 relative opacity-40 cursor-not-allowed">
-              <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full shadow-md bg-white" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* DPI Bypass */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[13px] text-white/70 font-medium">{t('settings.dpiBypass')}</p>
-          <p className="text-[11px] text-white/30 mt-0.5">{t('settings.dpiBypassDesc')}</p>
-        </div>
-        <button
-          onClick={() => setDpiBypass(!dpiBypass)}
-          className={`w-11 h-6 rounded-full transition-all duration-200 cursor-pointer relative ${
-            dpiBypass ? 'bg-accent' : 'bg-white/10'
-          }`}
-        >
-          <div
-            className={`absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-all duration-200 ${
-              dpiBypass ? 'left-[22px] bg-accent-contrast' : 'left-0.5 bg-white'
-            }`}
-          />
-        </button>
-      </div>
-
-      <div className="border-t border-white/[0.04]" />
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[13px] text-white/70 font-medium">{t('settings.discordRpc')}</p>
-            <p className="text-[11px] text-white/30 mt-0.5">{t('settings.discordRpcDesc')}</p>
-          </div>
-          <button
-            onClick={() => setDiscordRpcEnabled(!discordRpcEnabled)}
-            className={`w-11 h-6 rounded-full transition-all duration-200 cursor-pointer relative ${
-              discordRpcEnabled ? 'bg-accent' : 'bg-white/10'
-            }`}
-          >
-            <div
-              className={`absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-all duration-200 ${
-                discordRpcEnabled ? 'left-[22px] bg-accent-contrast' : 'left-0.5 bg-white'
-              }`}
-            />
-          </button>
-        </div>
-
-        {discordRpcEnabled && (
-          <>
-            <div className="space-y-2">
-              <p className="text-[13px] text-white/50 font-medium">
-                {t('settings.discordRpcMode')}
+    <SettingsGroup title={t('settings.playback')}>
+      <SettingSwitchRow
+        label={t('settings.floatingComments')}
+        description={t('settings.floatingCommentsDesc')}
+        checked={floatingComments}
+        onChange={() => setFloatingComments(!floatingComments)}
+      />
+      <SettingSwitchRow
+        label={t('settings.lyricsVisualizer')}
+        description={t('settings.lyricsVisualizerDesc')}
+        checked={lyricsVisualizer}
+        onChange={() => setLyricsVisualizer(!lyricsVisualizer)}
+      />
+      <SettingSwitchRow
+        label={t('settings.normalizeVolume')}
+        description={t('settings.normalizeVolumeDesc')}
+        checked={normalizeVolume}
+        onChange={() => setNormalizeVolume(!normalizeVolume)}
+      />
+      <SettingsRow>
+        <div className="space-y-3 px-4 py-3.5">
+          <div className="flex min-h-[52px] items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[14px] font-medium text-white">{t('settings.crossfade')}</p>
+              <p className="mt-0.5 text-[12px] leading-snug text-white/45">
+                {t('settings.crossfadeDesc')}
               </p>
-              <div className="grid grid-cols-3 gap-2">
-                {DISCORD_RPC_MODES.map((mode) => {
-                  const active = discordRpcMode === mode.id;
-                  return (
-                    <button
-                      key={mode.id}
-                      onClick={() => setDiscordRpcMode(mode.id)}
-                      className={`rounded-2xl border px-3 py-2.5 text-[12px] font-semibold transition-all duration-200 cursor-pointer ${
-                        active
-                          ? 'border-white/[0.16] bg-white/[0.08] text-white/90'
-                          : 'border-white/[0.05] bg-white/[0.02] text-white/45 hover:bg-white/[0.05] hover:text-white/70'
-                      }`}
-                    >
-                      {t(mode.labelKey)}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[13px] text-white/70 font-medium">
-                  {t('settings.discordRpcButton')}
-                </p>
-                <p className="text-[11px] text-white/30 mt-0.5">
-                  {t('settings.discordRpcButtonDesc')}
-                </p>
+            <SettingsToggle
+              checked={crossfadeEnabled}
+              onChange={() => setCrossfadeEnabled(!crossfadeEnabled)}
+            />
+          </div>
+          <div className={`flex items-center gap-3 ${crossfadeEnabled ? '' : 'opacity-50'}`}>
+            <input
+              type="range"
+              min={1}
+              max={12}
+              step={1}
+              value={crossfadeSeconds}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setCrossfadeSeconds(v);
+                if (!crossfadeEnabled) setCrossfadeEnabled(true);
+              }}
+              className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-accent"
+            />
+            <span className="w-14 shrink-0 text-right text-[12px] tabular-nums text-white/50">
+              {t('settings.crossfadeSec', { count: crossfadeSeconds })}
+            </span>
+          </div>
+        </div>
+      </SettingsRow>
+      <SettingSwitchRow
+        label={t('settings.highQualityStreaming')}
+        description={t('settings.highQualityStreamingDesc')}
+        checked={highQualityStreaming}
+        onChange={() => setHighQualityStreaming(!highQualityStreaming)}
+        trailing={
+          isPremium ? (
+            <SettingsToggle
+              checked={highQualityStreaming}
+              onChange={() => setHighQualityStreaming(!highQualityStreaming)}
+            />
+          ) : (
+            premiumLocked
+          )
+        }
+      />
+      <SettingSwitchRow
+        label={t('settings.bypassWhitelist')}
+        description={t('settings.bypassWhitelistDesc')}
+        checked={bypassWhitelist}
+        onChange={() => setBypassWhitelist(!bypassWhitelist)}
+        trailing={
+          isPremium ? (
+            <SettingsToggle
+              checked={bypassWhitelist}
+              onChange={() => setBypassWhitelist(!bypassWhitelist)}
+            />
+          ) : (
+            premiumLocked
+          )
+        }
+      />
+      <SettingSwitchRow
+        label={t('settings.dpiBypass')}
+        description={t('settings.dpiBypassDesc')}
+        checked={dpiBypass}
+        onChange={() => setDpiBypass(!dpiBypass)}
+      />
+      <SettingSwitchRow
+        label={t('settings.discordRpc')}
+        description={t('settings.discordRpcDesc')}
+        checked={discordRpcEnabled}
+        onChange={() => setDiscordRpcEnabled(!discordRpcEnabled)}
+      />
+      {discordRpcEnabled && (
+        <>
+          <SettingsRow>
+            <SettingsInset>
+              <p className="text-[12px] font-medium text-white/55">{t('settings.discordRpcMode')}</p>
+              <div className="flex flex-wrap gap-2">
+                {DISCORD_RPC_MODES.map((mode) => (
+                  <SettingsChip
+                    key={mode.id}
+                    active={discordRpcMode === mode.id}
+                    onClick={() => setDiscordRpcMode(mode.id)}
+                  >
+                    {t(mode.labelKey)}
+                  </SettingsChip>
+                ))}
               </div>
-              <button
-                onClick={() => setDiscordRpcShowButton(!discordRpcShowButton)}
-                className={`w-11 h-6 rounded-full transition-all duration-200 cursor-pointer relative ${
-                  discordRpcShowButton ? 'bg-accent' : 'bg-white/10'
-                }`}
-              >
-                <div
-                  className={`absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-all duration-200 ${
-                    discordRpcShowButton ? 'left-[22px] bg-accent-contrast' : 'left-0.5 bg-white'
-                  }`}
-                />
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </section>
+            </SettingsInset>
+          </SettingsRow>
+          <SettingSwitchRow
+            label={t('settings.discordRpcButton')}
+            description={t('settings.discordRpcButtonDesc')}
+            checked={discordRpcShowButton}
+            onChange={() => setDiscordRpcShowButton(!discordRpcShowButton)}
+          />
+        </>
+      )}
+    </SettingsGroup>
   );
 });
 
-/* ── Import Section ──────────────────────────────────────── */
+
 
 const ImportSection = React.memo(function ImportSection() {
   const { t } = useTranslation();
   const [ymOpen, setYmOpen] = useState(false);
 
   return (
-    <section className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-[60px] rounded-3xl p-6 shadow-xl">
-      <h3 className="text-[15px] font-bold text-white/80 tracking-tight mb-4">
-        {t('settings.import')}
-      </h3>
-      <button
-        onClick={() => setYmOpen(true)}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold bg-white/[0.06] text-white/70 hover:bg-white/[0.1] border border-white/[0.06] hover:border-white/[0.12] transition-all duration-300 cursor-pointer"
-      >
-        {t('settings.importYandex')}
-      </button>
+    <SettingsGroup title={t('settings.import')}>
+      <SettingsActions>
+        <SettingsOutlineButton onClick={() => setYmOpen(true)}>
+          {t('settings.importYandex')}
+        </SettingsOutlineButton>
+      </SettingsActions>
       {ymOpen && (
         <React.Suspense fallback={null}>
           <YMImportDialogLazy open={ymOpen} onOpenChange={setYmOpen} />
         </React.Suspense>
       )}
-    </section>
+    </SettingsGroup>
   );
 });
 
 const YMImportDialogLazy = React.lazy(() => import('../components/music/YMImportDialog'));
 
-/* ── Account Section ────────────────────────────────────── */
+
 
 const QrLinkSheetLazy = React.lazy(() =>
   import('../components/auth/QrLinkSheet').then((m) => ({ default: m.QrLinkSheet })),
@@ -1198,43 +1093,31 @@ const AccountSection = React.memo(function AccountSection() {
   const [transferOpen, setTransferOpen] = useState(false);
 
   return (
-    <section className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-[60px] rounded-3xl p-6 shadow-xl">
-      <h3 className="text-[15px] font-bold text-white/80 tracking-tight mb-5">
-        {t('settings.account')}
-      </h3>
-      <div className="flex flex-col gap-2.5">
-        <button
-          type="button"
-          onClick={() => setTransferOpen(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold bg-white/[0.04] text-white/75 hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.12] transition-all duration-300 cursor-pointer w-fit"
-        >
+    <SettingsGroup title={t('settings.account')}>
+      <SettingsActions>
+        <SettingsTextButton onClick={() => setTransferOpen(true)}>
           {t('qrLink.transferSession')}
-        </button>
-        <button
-          type="button"
-          onClick={logout}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/10 hover:border-red-500/20 transition-all duration-300 cursor-pointer w-fit"
-        >
+        </SettingsTextButton>
+        <SettingsTextButton onClick={logout} variant="danger">
           {t('auth.signOut')}
-        </button>
-      </div>
+        </SettingsTextButton>
+      </SettingsActions>
       {transferOpen && (
         <React.Suspense fallback={null}>
           <QrLinkSheetLazy open={transferOpen} onOpenChange={setTransferOpen} mode="push" />
         </React.Suspense>
       )}
-    </section>
+    </SettingsGroup>
   );
 });
 
-/* ── Main ───────────────────────────────────────────────── */
+
 
 export function Settings() {
   const { t } = useTranslation();
 
   return (
-    <div className="p-6 pb-4 max-w-2xl mx-auto space-y-6">
-      <h1 className="text-3xl font-extrabold text-white tracking-tight">{t('settings.title')}</h1>
+    <SettingsPage title={t('settings.title')}>
       <LanguageSection />
       <CacheSection />
       <ThemeSection />
@@ -1244,6 +1127,6 @@ export function Settings() {
       <ImportSection />
       <CallProxySection />
       <AccountSection />
-    </div>
+    </SettingsPage>
   );
 }

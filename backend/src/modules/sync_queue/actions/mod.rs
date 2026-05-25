@@ -15,9 +15,6 @@ pub mod unfollow_user;
 pub mod unlike_playlist;
 pub mod unlike_track;
 
-/// Контекст выполнения одного action из sync_queue. Прокидывается во все
-/// action-handler'ы, чтобы каждый сам мог обновить свой user_<state>-mirror
-/// после успешного SC-вызова.
 pub struct ActionCtx<'a> {
     pub sc: &'a ScClient,
     pub pg: &'a PgPool,
@@ -27,7 +24,6 @@ pub struct ActionCtx<'a> {
     pub payload: Option<&'a Value>,
 }
 
-/// Диспатч по action_type. Каждый action — отдельный модуль в `actions/`.
 pub async fn dispatch(ctx: &ActionCtx<'_>, action_type: &str) -> AppResult<()> {
     match action_type {
         like_track::KIND => like_track::execute(ctx).await,
@@ -46,7 +42,6 @@ pub async fn dispatch(ctx: &ActionCtx<'_>, action_type: &str) -> AppResult<()> {
     }
 }
 
-/// Возвращает action_type противоположного действия (для дедупа на enqueue).
 pub fn inverse(action_type: &str) -> Option<&'static str> {
     match action_type {
         like_track::KIND => Some(unlike_track::KIND),

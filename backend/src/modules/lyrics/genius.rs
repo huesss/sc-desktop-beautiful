@@ -640,9 +640,6 @@ impl GeniusService {
         out
     }
 
-    /// Собирает список Genius-кандидатов для скрейпа лирики:
-    /// сначала через api.genius.com (direct → fallback) если есть токен,
-    /// затем web /api/search/multi (proxy_first) как добор/фолбэк.
     async fn collect_lyric_hits(&self, q: &str, limit: usize) -> Vec<LyricHit> {
         let mut out: Vec<LyricHit> = Vec::new();
         let mut seen_urls: std::collections::HashSet<String> = std::collections::HashSet::new();

@@ -48,7 +48,7 @@ const FloatingCommentsInner = React.memo(function FloatingCommentsInner({
 
   const { comments } = useTrackComments(trackUrn);
 
-  // Filter comments with timestamp and body
+  
   const timedComments = useRef<Comment[]>([]);
   useEffect(() => {
     timedComments.current = comments.filter((c) => c.timestamp != null && c.body);
@@ -123,7 +123,7 @@ function renderPill(container: HTMLDivElement, pill: Pill) {
   const el = document.createElement('div');
   el.setAttribute('data-pill-id', String(pill.id));
   el.className =
-    'flex items-center gap-2.5 px-4 py-2 rounded-full backdrop-blur-xl border border-white/10 pointer-events-auto transition-all duration-300 ease-out';
+    'flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/10 pointer-events-auto transition-all duration-300 ease-out';
   el.style.cssText = 'background: rgba(255,255,255,0.08); transform: scale(0.5); opacity: 0;';
 
   const avatar = document.createElement('img');
@@ -132,7 +132,7 @@ function renderPill(container: HTMLDivElement, pill: Pill) {
   avatar.alt = '';
 
   const body = document.createElement('span');
-  body.className = 'text-[13px] text-white/80 max-w-[300px] truncate';
+  body.className = 'text-[13px] text-[#ffffff99] max-w-[300px] truncate';
   body.textContent = comment.body;
 
   el.appendChild(avatar);
@@ -143,14 +143,14 @@ function renderPill(container: HTMLDivElement, pill: Pill) {
     const sec = Math.floor(comment.timestamp / 1000);
     const m = Math.floor(sec / 60);
     const s = sec % 60;
-    ts.className = 'text-[11px] text-white/30 tabular-nums shrink-0';
+    ts.className = 'text-[11px] text-[#ffffff99] tabular-nums shrink-0';
     ts.textContent = `${m}:${String(s).padStart(2, '0')}`;
     el.appendChild(ts);
   }
 
   container.prepend(el);
 
-  // Trigger enter animation
+  
   requestAnimationFrame(() => {
     el.style.transform = 'scale(1)';
     el.style.opacity = '1';

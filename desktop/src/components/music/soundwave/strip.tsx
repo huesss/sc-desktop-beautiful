@@ -5,7 +5,7 @@ import { TrackCard } from '../TrackCard';
 
 interface StripProps {
   tracks: Track[];
-  /** Card width in px. */
+  
   width?: number;
 }
 

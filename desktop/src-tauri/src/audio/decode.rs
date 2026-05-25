@@ -20,7 +20,7 @@ use crate::audio::types::{
 const NORMALIZATION_CACHE_VERSION: u8 = 2;
 
 pub fn is_ogg_opus(bytes: &[u8]) -> bool {
-    // OpusHead appears at byte 28 in a standard OGG Opus header page
+
     bytes.len() >= 36
         && &bytes[0..4] == b"OggS"
         && bytes[..bytes.len().min(64)]

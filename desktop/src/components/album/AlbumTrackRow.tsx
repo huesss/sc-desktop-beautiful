@@ -10,6 +10,7 @@ import {
   playBlack14,
   playWhite14,
 } from '../../lib/icons';
+import type { PlaybackContext } from '../../lib/playback-context';
 import { useTrackPlay } from '../../lib/useTrackPlay';
 import type { Track } from '../../stores/player';
 import { AddToPlaylistDialog } from '../music/AddToPlaylistDialog';
@@ -20,11 +21,13 @@ interface AlbumTrackRowProps {
   track: Track;
   position: number;
   queue: Track[];
+  albumId: string;
   aura: Aura;
 }
 
-function AlbumTrackRowImpl({ track, position, queue, aura }: AlbumTrackRowProps) {
-  const { isThis, isThisPlaying, togglePlay } = useTrackPlay(track, queue);
+function AlbumTrackRowImpl({ track, position, queue, albumId, aura }: AlbumTrackRowProps) {
+  const albumContext: PlaybackContext = { kind: 'album', id: albumId };
+  const { isThis, isThisPlaying, togglePlay } = useTrackPlay(track, queue, albumContext);
   const cover = art(track.artwork_url, 't200x200');
   const lightAura = isLight(aura);
   const playIcon = lightAura ? playBlack14 : playWhite14;
@@ -32,7 +35,7 @@ function AlbumTrackRowImpl({ track, position, queue, aura }: AlbumTrackRowProps)
 
   return (
     <div
-      className="group flex items-center gap-4 px-4 py-2.5 rounded-2xl transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] select-none"
+      className="group flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] select-none"
       style={{
         background: isThis
           ? `linear-gradient(90deg, ${auraRgba(aura, 0.16)}, ${auraRgba(aura, 0.04)} 70%, transparent)`
@@ -63,7 +66,7 @@ function AlbumTrackRowImpl({ track, position, queue, aura }: AlbumTrackRowProps)
           </div>
         ) : (
           <>
-            <span className="text-[13px] text-white/30 tabular-nums font-semibold group-hover:opacity-0 transition-opacity">
+            <span className="text-[13px] text-[#ffffff99] tabular-nums font-semibold group-hover:opacity-0 transition-opacity">
               {position}
             </span>
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -72,8 +75,6 @@ function AlbumTrackRowImpl({ track, position, queue, aura }: AlbumTrackRowProps)
                 style={{
                   background: lightAura ? auraRgba(aura, 0.85) : 'rgba(255,255,255,0.12)',
                   boxShadow: `inset 0 0 0 1px ${auraRgba(aura, 0.3)}`,
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
                 }}
               >
                 {playIcon}
@@ -90,7 +91,7 @@ function AlbumTrackRowImpl({ track, position, queue, aura }: AlbumTrackRowProps)
         {cover ? (
           <img src={cover} alt="" className="w-full h-full object-cover" loading="lazy" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-white/[0.04]">
+          <div className="w-full h-full flex items-center justify-center bg-[#141414]">
             <Music size={14} className="text-white/20" />
           </div>
         )}
@@ -103,14 +104,14 @@ function AlbumTrackRowImpl({ track, position, queue, aura }: AlbumTrackRowProps)
         <AddToPlaylistDialog trackUrns={[track.urn]}>
           <button
             type="button"
-            className="cursor-pointer w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/80 hover:bg-white/[0.06] opacity-0 group-hover:opacity-100 transition-all"
+            className="cursor-pointer w-8 h-8 rounded-lg flex items-center justify-center text-[#ffffff99] hover:text-[#ffffff99] hover:bg-white/5 opacity-0 group-hover:opacity-100 transition-all"
           >
             <ListPlus size={14} />
           </button>
         </AddToPlaylistDialog>
       </div>
 
-      <span className="text-[12px] text-white/30 tabular-nums font-medium shrink-0 w-12 text-right">
+      <span className="text-[12px] text-[#ffffff99] tabular-nums font-medium shrink-0 w-12 text-right">
         {dur(track.duration)}
       </span>
     </div>

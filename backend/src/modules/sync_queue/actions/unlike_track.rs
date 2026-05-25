@@ -10,9 +10,6 @@ pub async fn execute(ctx: &ActionCtx<'_>) -> AppResult<()> {
         .api_delete(&format!("/likes/tracks/{}", ctx.target_urn), ctx.token)
         .await?;
     let sc_track_id = extract_sc_id(ctx.target_urn);
-    // wanted_state=false → строка остаётся только если юзер всё ещё хочет
-    // unlike. Если за время лока юзер перевернул обратно в liked
-    // (wanted_state=true), мы её не трогаем.
     sqlx::query(
         "DELETE FROM user_likes_tracks \
          WHERE user_id = $1 AND sc_track_id = $2 AND wanted_state = false",

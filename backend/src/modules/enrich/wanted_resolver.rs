@@ -18,13 +18,11 @@ use crate::sc::ScClient;
 
 const BATCH_SIZE: i64 = 30;
 const SEARCH_LIMIT: usize = 10;
-/// Композитный score для безусловной линковки. Что в диапазоне
-/// [BORDERLINE_LOW, SEARCH_LINK_THRESHOLD) — отдаётся на AI matcher (если включён).
+
 const SEARCH_LINK_THRESHOLD: f32 = 0.7;
-/// Нижняя граница «borderline»-зоны: ниже — сразу отбрасываем как mismatch.
+
 const BORDERLINE_LOW: f32 = 0.45;
-/// pg_advisory_xact_lock id — гарантирует, что в кластере одновременно тикает
-/// только один инстанс backend'а. Освобождается на коммите/откате транзакции.
+
 const ADVISORY_LOCK_ID: i64 = 0x77AED5_E50_4EE0;
 
 pub struct WantedResolverService {
@@ -82,9 +80,7 @@ impl WantedResolverService {
     }
 
     async fn run_tick_locked(&self) -> AppResult<()> {
-        // Session-level advisory lock на отдельной коннекции. На время тика
-        // эта коннекция занята только удержанием лока — реальная работа
-        // run_tick'а идёт через свободные коннекты из пула.
+
         let mut lock_conn = self.pg.acquire().await?;
         let acquired: (bool,) = sqlx::query_as("SELECT pg_try_advisory_lock($1)")
             .bind(ADVISORY_LOCK_ID)
@@ -194,8 +190,6 @@ impl WantedResolverService {
 
         let mut linked_ids: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
 
-        // Stage 1 — listing привязанных SC аккаунтов артиста.
-        // Группируем wanted'ы по артисту и за раз скармливаем сканеру.
         let mut by_artist: std::collections::HashMap<Uuid, Vec<&WantedRecord>> =
             std::collections::HashMap::new();
         for r in &rows {
@@ -224,8 +218,6 @@ impl WantedResolverService {
             }
         }
 
-        // Stage 2 — для остальных пробуем найти в уже indexed_tracks этого артиста
-        // и общий SC search.
         for r in &rows {
             if linked_ids.contains(&r.id) {
                 continue;
@@ -249,8 +241,7 @@ impl WantedResolverService {
     }
 
     async fn resolve_one(&self, w: &WantedRecord, token: &str) -> AppResult<bool> {
-        // Stage A — пробуем найти трек среди уже indexed_tracks этого артиста
-        // (без сетевых запросов).
+
         if let Some(sc_id) = self
             .try_link_via_existing(w.id, &w.title, &w.artist_name)
             .await?
@@ -260,14 +251,11 @@ impl WantedResolverService {
             return Ok(true);
         }
 
-        // Stage B — общий SC search по двум вариантам query.
         let candidates = self.sc_search(w, token).await;
         if candidates.is_empty() {
             return Ok(false);
         }
 
-        // Сначала ищем безусловный лучший. Параллельно собираем borderline-список
-        // (0.45..0.7) для возможной AI-проверки.
         let mut best_strict: Option<(f32, usize)> = None;
         let mut borderline: Vec<usize> = Vec::new();
         for (idx, c) in candidates.iter().enumerate() {
@@ -303,7 +291,6 @@ impl WantedResolverService {
             return Ok(false);
         }
 
-        // Borderline — отдаём на AI matcher (если включён).
         let Some(ai) = self.ai_matcher.as_ref() else {
             debug!(%w.id, count = borderline.len(), "wanted-resolver: borderline candidates, AI disabled");
             return Ok(false);
@@ -429,9 +416,6 @@ impl WantedResolverService {
     }
 }
 
-/// Порог совпадения title для линковки уже-проиндексированного трека.
-/// Артист матчится через `track_artists.artist_id`, поэтому планку держим
-/// высокой, чтобы не залинковать одноимёнки разных треков.
 pub const INDEXED_TITLE_THRESHOLD: f32 = 0.85;
 
 #[derive(Debug, Clone)]
@@ -441,9 +425,6 @@ pub struct IndexedMatch {
     pub score: f32,
 }
 
-/// Ищет лучший indexed_track этого артиста по title через `matcher::title_score`.
-/// Используется и artist_crawl, и wanted_resolver. Чистый pg-запрос + scoring,
-/// без сетевых вызовов.
 pub async fn find_best_indexed_for_artist_title(
     pg: &PgPool,
     artist_id: Uuid,
@@ -481,9 +462,6 @@ pub async fn find_best_indexed_for_artist_title(
     Ok(best)
 }
 
-/// Линкует wanted_track к найденному indexed_track (по sc_track_id) и
-/// перетаскивает связи с альбомами. Race-safe (UPDATE WHERE id, ON CONFLICT
-/// DO NOTHING для album_tracks).
 pub async fn link_wanted_to_sc(pg: &PgPool, wanted_id: Uuid, sc_track_id: &str) -> AppResult<()> {
     let row: Option<(Option<Uuid>,)> = sqlx::query_as(
         "UPDATE wanted_tracks

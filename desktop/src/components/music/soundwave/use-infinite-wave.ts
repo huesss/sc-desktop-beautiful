@@ -1,105 +1,64 @@
 import { useEffect, useRef } from 'react';
-import { fetchSmartWave, type SmartWaveSeedKind, sendWaveFeedback } from '../../../lib/soundwave';
 import type { Track } from '../../../stores/player';
 import { usePlayerStore } from '../../../stores/player';
 
-/**
- * Бесконечная SmartWave-волна на стороне клиента.
- *
- * 1. Хук владеет cursor'ом — серверным токеном, который помнит уже отданное
- *    и адаптивные веса arm'ов. После каждой подгрузки cursor обновляется.
- *    Если Redis грохнули — сервер начнёт новую сессию, для UX незаметно.
- * 2. Refill срабатывает только если играет наш трек и в очереди осталось
- *    меньше `minTail` хвоста. `ownedRef` — Set urn'ов, которые мы положили;
- *    чужие очереди (плейлисты, лайки) не триггерят refill.
- * 3. Feedback (dis/pos) накапливается между refill'ами; перед следующим
- *    fetch шлём батч, сервер пересчитает веса arm'ов.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export function useInfiniteWave(opts: {
   enabled: boolean;
-  seedKind: SmartWaveSeedKind;
-  seedId?: string;
-  initialTracks: Track[];
-  initialCursor: string | null;
-  languages?: string[];
-  filterTrack?: (t: Track) => boolean;
+  tracks: Track[];
+  fetchMore: () => Promise<Track[]>;
   minTail?: number;
-  batchLimit?: number;
 }) {
-  const {
-    enabled,
-    seedKind,
-    seedId,
-    initialTracks,
-    initialCursor,
-    languages,
-    filterTrack,
-    minTail = 5,
-    batchLimit = 20,
-  } = opts;
+  const { enabled, tracks, fetchMore, minTail = 3 } = opts;
 
+  
+  
   const ownedRef = useRef<Set<string>>(new Set());
-  const cursorRef = useRef<string>(initialCursor ?? '');
   const fetchingRef = useRef(false);
-  const negCountRef = useRef(0);
-  const posCountRef = useRef(0);
-  const languagesRef = useRef(languages);
-  const filterRef = useRef(filterTrack);
+  const fetchMoreRef = useRef(fetchMore);
 
   useEffect(() => {
-    languagesRef.current = languages;
-  }, [languages]);
-  useEffect(() => {
-    filterRef.current = filterTrack;
-  }, [filterTrack]);
+    fetchMoreRef.current = fetchMore;
+  }, [fetchMore]);
 
+  
+  
   useEffect(() => {
-    if (initialCursor) cursorRef.current = initialCursor;
-  }, [initialCursor]);
-
-  useEffect(() => {
-    for (const t of initialTracks) ownedRef.current.add(t.urn);
-  }, [initialTracks]);
+    for (const t of tracks) ownedRef.current.add(t.urn);
+  }, [tracks]);
 
   useEffect(() => {
     if (!enabled) return;
 
     return usePlayerStore.subscribe((state) => {
-      const { queue, queueIndex, currentTrack, isPlaying } = state;
+      const { queue, queueIndex, currentTrack } = state;
       if (!currentTrack) return;
       if (!ownedRef.current.has(currentTrack.urn)) return;
-
       const remaining = queue.length - queueIndex - 1;
       if (remaining > minTail) return;
-      if (!isPlaying && remaining > 0) return;
       if (fetchingRef.current) return;
 
       fetchingRef.current = true;
       (async () => {
         try {
-          if (cursorRef.current && (negCountRef.current > 0 || posCountRef.current > 0)) {
-            const updated = await sendWaveFeedback({
-              cursor: cursorRef.current,
-              negatives: negCountRef.current,
-              positives: posCountRef.current,
-            });
-            negCountRef.current = 0;
-            posCountRef.current = 0;
-            if (updated) cursorRef.current = updated;
-          }
-          const batch = await fetchSmartWave({
-            seedKind,
-            seedId,
-            cursor: cursorRef.current || undefined,
-            limit: batchLimit,
-            languages: languagesRef.current,
-          });
-          if (batch.cursor) cursorRef.current = batch.cursor;
-          const filterFn = filterRef.current;
+          const next = await fetchMoreRef.current();
           const existing = new Set(usePlayerStore.getState().queue.map((t) => t.urn));
-          const fresh = batch.tracks.filter(
-            (t) => !existing.has(t.urn) && (!filterFn || filterFn(t)),
-          );
+          const fresh = next.filter((t) => !existing.has(t.urn));
           if (fresh.length > 0) {
             usePlayerStore.getState().addToQueue(fresh);
             for (const t of fresh) ownedRef.current.add(t.urn);
@@ -111,15 +70,5 @@ export function useInfiniteWave(opts: {
         }
       })();
     });
-  }, [enabled, seedKind, seedId, minTail, batchLimit]);
-
-  return {
-    recordNegative: () => {
-      negCountRef.current += 1;
-    },
-    recordPositive: () => {
-      posCountRef.current += 1;
-    },
-    isOwned: (urn: string) => ownedRef.current.has(urn),
-  };
+  }, [enabled, minTail]);
 }

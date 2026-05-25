@@ -23,12 +23,10 @@ function AlbumGridCardImpl({ album, aura }: AlbumGridCardProps) {
     <button
       type="button"
       onClick={() => navigate(`/album/${encodeURIComponent(album.id)}`)}
-      className="group relative h-full w-full flex flex-col gap-3 text-left p-3 rounded-3xl cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:scale-[1.03] overflow-hidden"
+      className="group relative h-full w-full flex flex-col gap-3 text-left p-3 rounded-lg cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:scale-[1.03] overflow-hidden"
       style={{
         background: 'rgba(255,255,255,0.03)',
         border: '0.5px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(20px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
       }}
     >
       <div
@@ -41,7 +39,7 @@ function AlbumGridCardImpl({ album, aura }: AlbumGridCardProps) {
       />
 
       <div
-        className="relative aspect-square rounded-2xl overflow-hidden"
+        className="relative aspect-square rounded-lg overflow-hidden"
         style={{
           background: `linear-gradient(135deg, ${g1} 0%, ${g2} 55%, ${g3} 100%)`,
           boxShadow: `0 20px 40px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.18)`,
@@ -68,7 +66,7 @@ function AlbumGridCardImpl({ album, aura }: AlbumGridCardProps) {
             />
             <div className="absolute inset-0 flex items-center justify-center">
               <span
-                className="text-white/95 font-black tracking-tight select-none"
+                className="text-white font-black tracking-tight select-none"
                 style={{
                   fontSize: 'clamp(40px, 5vw, 64px)',
                   textShadow: '0 8px 24px rgba(0,0,0,0.55)',
@@ -81,12 +79,10 @@ function AlbumGridCardImpl({ album, aura }: AlbumGridCardProps) {
               className="absolute bottom-2 right-2 w-8 h-8 rounded-full flex items-center justify-center"
               style={{
                 background: 'rgba(0,0,0,0.35)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
                 border: '0.5px solid rgba(255,255,255,0.16)',
               }}
             >
-              <Disc3 size={14} className="text-white/70" />
+              <Disc3 size={14} className="text-[#ffffff99]" />
             </div>
           </>
         )}
@@ -96,8 +92,6 @@ function AlbumGridCardImpl({ album, aura }: AlbumGridCardProps) {
           style={{
             background: 'rgba(0,0,0,0.55)',
             color: '#fff',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
             border: '0.5px solid rgba(255,255,255,0.12)',
           }}
         >
@@ -117,18 +111,18 @@ function AlbumGridCardImpl({ album, aura }: AlbumGridCardProps) {
       </div>
 
       <div className="px-1 min-w-0 flex flex-col gap-1">
-        <p className="text-[13.5px] font-semibold text-white/90 truncate group-hover:text-white">
+        <p className="text-[13.5px] font-semibold text-white truncate group-hover:text-white">
           {album.title}
         </p>
-        <p className="text-[11px] text-white/45 truncate">{album.primary_artist.name}</p>
+        <p className="text-[11px] text-[#ffffff99] truncate">{album.primary_artist.name}</p>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-white/30">
+          <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-[#ffffff99]">
             <ListMusic size={10} /> {album.track_count}
           </span>
           {album.total_duration_ms > 0 && (
             <>
               <span className="text-white/15">·</span>
-              <span className="text-[10px] tabular-nums text-white/30">
+              <span className="text-[10px] tabular-nums text-[#ffffff99]">
                 {dur(album.total_duration_ms)}
               </span>
             </>
@@ -136,7 +130,7 @@ function AlbumGridCardImpl({ album, aura }: AlbumGridCardProps) {
           {album.release_year != null && (
             <>
               <span className="text-white/15">·</span>
-              <span className="text-[10px] tabular-nums text-white/30">{album.release_year}</span>
+              <span className="text-[10px] tabular-nums text-[#ffffff99]">{album.release_year}</span>
             </>
           )}
         </div>

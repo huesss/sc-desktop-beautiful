@@ -73,11 +73,11 @@ export function toScproxyUrl(url: string, { bypassCache = false } = {}): string 
   return `scproxy://localhost/${encoded}`;
 }
 
-/**
- * Permanent on-disk image cache endpoint.
- * Stored in app_data_dir/images/, never cleared by idle/maintenance —
- * only by an explicit user action.
- */
+
+
+
+
+
 export function toImageCacheUrl(url: string, { bypassCache = false } = {}): string {
   const { encoded, target } = buildEncodedPayload(url, bypassCache);
 

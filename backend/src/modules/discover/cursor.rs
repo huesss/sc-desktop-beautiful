@@ -6,25 +6,25 @@ use crate::error::{AppError, AppResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArtistCursor {
-    /// Primary numeric ordering value (trending/listeners/tracks/star).
+
     pub p: f64,
-    /// Secondary numeric ordering value (used by `star` to break ties by trending).
+
     #[serde(default)]
     pub p2: f64,
-    /// Tiebreaker — normalized_name.
+
     pub n: String,
-    /// Final stable tiebreaker.
+
     pub id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlbumCursor {
-    /// Primary numeric (popularity, track_count, year+month-ordinal, …).
+
     pub p: f64,
-    /// Secondary numeric (release_date as days since epoch, used by `recent`).
+
     #[serde(default)]
     pub p2: f64,
-    /// Tiebreaker — normalized_title.
+
     pub n: String,
     pub id: Uuid,
 }

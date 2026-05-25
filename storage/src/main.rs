@@ -26,10 +26,9 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub backend: Arc<Backend>,
     pub pipeline: Pipeline,
-    /// Live byte counter of files in `{tmp}/source/`. Seeded once at startup;
-    /// mutated via fetch_add/sub on the hot path. No stat syscalls per request.
+
     pub tmp_used_bytes: AtomicU64,
-    /// Guards a lazy rescan of `{tmp}/source/` to recover from external cleanup.
+
     pub tmp_rescan_lock: tokio::sync::Mutex<Instant>,
     file_locks: Mutex<HashMap<String, Weak<tokio::sync::Mutex<()>>>>,
 }
@@ -72,7 +71,6 @@ async fn main() {
         .await
         .expect("failed to create result dir");
 
-    // Wipe stale tmp from previous crashes — these files are not referenced by anyone.
     purge_dir(&source_dir).await;
     purge_dir(&result_dir).await;
 
@@ -183,8 +181,6 @@ async fn main() {
     }
 }
 
-/// Best-effort wipe of all top-level files in a tmp dir (called once at boot
-/// — anything left from a previous run is unowned and cannot be resumed).
 async fn purge_dir(path: &str) {
     let mut rd = match tokio::fs::read_dir(path).await {
         Ok(rd) => rd,

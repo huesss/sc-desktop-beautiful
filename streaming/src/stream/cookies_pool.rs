@@ -1,6 +1,4 @@
-//! Пул `CookiesClient`'ов с ротацией по 429. Каждая строка cookies из
-//! `SC_COOKIES` — отдельная сессия; начинаем с последней успешной, на
-//! rate-limit переходим к следующей. Кончились все — отдаём последнюю ошибку.
+
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -22,7 +20,7 @@ const RATE_LIMIT_COOLDOWN: Duration = Duration::from_secs(30);
 
 struct PoolEntry {
     client: CookiesClient,
-    /// Когда можно снова пробовать (после 429).
+
     rate_limited_until: Mutex<Option<tokio::time::Instant>>,
 }
 
@@ -32,7 +30,7 @@ pub struct CookiesPool {
 }
 
 impl CookiesPool {
-    /// Строит пул. Cookies-строки без `oauth_token=` тихо отбрасываются.
+
     pub fn new(http: Client, proxy_url: &str, cookies_list: &[String]) -> Self {
         let entries = cookies_list
             .iter()

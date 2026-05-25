@@ -11,6 +11,7 @@ pub enum ImpressionSource {
     Home,
     Similar,
     Artist,
+    Tail,
 }
 
 impl ImpressionSource {
@@ -19,6 +20,7 @@ impl ImpressionSource {
             Self::Home => "home",
             Self::Similar => "similar",
             Self::Artist => "artist",
+            Self::Tail => "tail",
         }
     }
 }

@@ -1,11 +1,4 @@
-//! Сканер привязанных к артисту SC-аккаунтов.
-//!
-//! Идея: у артиста в `artist_sc_accounts` лежит список SC user_id (main / alt /
-//! demo / auto_match). Перед тем как «искать по всему SC», обойти эти аккаунты
-//! `/users/{urn}/tracks` и попытаться сматчить wanted_tracks этого артиста с
-//! фактически залитыми треками. Это дешевле и точнее чем общий search.
-//!
-//! Используется wanted_resolver'ом и может вызываться из админки/ручника.
+
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -22,20 +15,13 @@ use crate::modules::enrich::token_pool::TokenPool;
 use crate::modules::indexing::IndexingService;
 use crate::sc::ScClient;
 
-/// Минимальный композитный score, при котором мы линкуем wanted ↔ SC-кандидат
-/// в рамках *листинга привязанного аккаунта*. Тут планка ниже, чем в общем
-/// search, потому что аккаунт уже привязан к артисту и шанс ложного совпадения
-/// существенно меньше.
 const ACCOUNT_LINK_THRESHOLD: f32 = 0.7;
-/// Borderline-зона для AI fallback'а в рамках листинга аккаунта.
+
 const BORDERLINE_LOW: f32 = 0.45;
 
-/// Пагинация SC `/users/{urn}/tracks` — сколько брать за раз и сколько страниц
-/// максимум обходить, чтобы не залипнуть на гигантском канале.
 const PAGE_SIZE: i64 = 100;
 const MAX_PAGES: usize = 20;
 
-/// Сколько SC-токенов запросить из пула.
 const TOKEN_BACKGROUND_LIMIT: usize = 2;
 
 #[derive(Debug, Clone)]
@@ -77,8 +63,6 @@ impl ScAccountScanner {
         })
     }
 
-    /// Прогнать сканер по всем привязанным аккаунтам артиста, пытаясь
-    /// сматчить указанные wanted_tracks с реальными SC треками.
     pub async fn scan_for_artist(
         self: &Arc<Self>,
         artist_id: Uuid,
@@ -120,7 +104,6 @@ impl ScAccountScanner {
                 "sc_account_scan: matching account tracks against wanted"
             );
 
-            // Pass 1 — strict (>= ACCOUNT_LINK_THRESHOLD).
             let mut newly_linked: Vec<Uuid> = Vec::new();
             for cand in &tracks {
                 if remaining.is_empty() {
@@ -153,7 +136,6 @@ impl ScAccountScanner {
                 remaining.retain(|w| !newly_linked.contains(&w.id));
             }
 
-            // Pass 2 — borderline через AI matcher (если включён).
             if remaining.is_empty() {
                 continue;
             }
@@ -368,7 +350,7 @@ impl ScAccountScanner {
                 break;
             }
             offset += count;
-            // лёгкий троттл, чтобы не сжечь токен на одном артисте
+
             tokio::time::sleep(Duration::from_millis(150)).await;
         }
         out

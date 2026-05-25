@@ -1,19 +1,28 @@
 import { useCallback, useEffect, useRef } from 'react';
+import type { PlaybackContext } from './playback-context';
+import { contextsMatch } from './playback-context';
 import { type Track, usePlayerStore } from '../stores/player';
 import { rememberTracks } from './offline-index';
 
-/**
- * Optimized hook for track play/pause.
- * Only re-renders when THIS track's play state changes, not on every global isPlaying toggle.
- */
-export function useTrackPlay(track: Track, queue?: Track[]) {
-  const isThis = usePlayerStore((s) => s.currentTrack?.urn === track.urn);
-  const isThisPlaying = usePlayerStore((s) => s.currentTrack?.urn === track.urn && s.isPlaying);
+export function useTrackPlay(track: Track, queue?: Track[], context?: PlaybackContext | null) {
+  const matchesContext = (s: ReturnType<typeof usePlayerStore.getState>) =>
+    context == null
+      ? true
+      : !!s.playbackContext && contextsMatch(s.playbackContext, context);
+
+  const isThis = usePlayerStore(
+    (s) => s.currentTrack?.urn === track.urn && matchesContext(s),
+  );
+  const isThisPlaying = usePlayerStore(
+    (s) => s.isPlaying && s.currentTrack?.urn === track.urn && matchesContext(s),
+  );
 
   const trackRef = useRef(track);
   const queueRef = useRef(queue);
+  const contextRef = useRef(context);
   trackRef.current = track;
   queueRef.current = queue;
+  contextRef.current = context;
 
   useEffect(() => {
     void rememberTracks([track]);
@@ -23,18 +32,17 @@ export function useTrackPlay(track: Track, queue?: Track[]) {
     const { play, pause, resume } = usePlayerStore.getState();
     if (isThisPlaying) pause();
     else if (isThis) resume();
-    else play(trackRef.current, queueRef.current ?? [trackRef.current]);
+    else play(trackRef.current, queueRef.current ?? [trackRef.current], contextRef.current ?? null);
   }, [isThis, isThisPlaying]);
 
   return { isThis, isThisPlaying, togglePlay };
 }
 
-/**
- * Check if any track from a set of URNs is currently playing.
- * Only re-renders when the result changes.
- */
-export function useIsPlayingFrom(trackUrns: Set<string>) {
-  return usePlayerStore(
-    (s) => s.isPlaying && s.currentTrack != null && trackUrns.has(s.currentTrack.urn),
-  );
+export function useIsPlayingFrom(trackUrns: Set<string>, context?: PlaybackContext | null) {
+  return usePlayerStore((s) => {
+    if (!s.isPlaying || !s.currentTrack || !trackUrns.has(s.currentTrack.urn)) return false;
+    if (context == null) return true;
+    if (!s.playbackContext) return false;
+    return contextsMatch(s.playbackContext, context);
+  });
 }

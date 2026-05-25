@@ -19,7 +19,6 @@ impl OAuthAppsService {
         Arc::new(Self { pool, config })
     }
 
-    /// Разово: если таблица пустая — вставить env-кредов под именем `default`.
     pub async fn migrate_env_app(&self) -> AppResult<()> {
         let total: i64 = sqlx::query_scalar("SELECT COUNT(*)::int8 FROM oauth_apps")
             .fetch_one(&self.pool)

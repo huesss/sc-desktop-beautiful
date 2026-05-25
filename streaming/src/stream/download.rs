@@ -1,6 +1,4 @@
-//! GET /download/:track_urn — собирает кандидатов SoundCloud для прямого
-//! скачивания клиентом. Сервер только резолвит URL'ы и (для encrypted)
-//! делает handshake через `decrypt::Engine` — сам трек не качает.
+
 
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
@@ -52,8 +50,6 @@ pub enum Candidate {
     },
 }
 
-/// Транскодинг + контекст под который надо резолвить
-/// (откуда мы его взяли — anon-сессия или cookies-сессия).
 struct Entry {
     t: Transcoding,
     client_id: String,
@@ -326,8 +322,6 @@ async fn prepare_encrypted(
     })
 }
 
-/// `decrypt::Fetcher`, который тянет init/license через ту же прокси/релей
-/// инфраструктуру что и весь остальной SC-трафик, с указанным набором headers.
 struct SegmentFetcher {
     client: Client,
     proxy_url: String,
@@ -375,9 +369,6 @@ impl decrypt::Fetcher for SegmentFetcher {
     }
 }
 
-/// Парсит итоговый HTTP-статус из строки ошибки прокси-слоя.
-/// Формат строк фиксирован в `proxy.rs`: `"status NNN"` для direct/proxy,
-/// `"relay status NNN"` для relay. Транспорт-/parse-ошибки возвращают `None`.
 fn classify_status(msg: &str) -> Option<u16> {
     for pat in ["relay status ", "status "] {
         if let Some(i) = msg.find(pat) {
@@ -391,9 +382,6 @@ fn classify_status(msg: &str) -> Option<u16> {
     None
 }
 
-/// 404/410 — точно нет такой дорожки (ожидаемо для DRM-only треков с
-/// «фейковыми» plain-транскодингами). Всё остальное (rate-limit прокси,
-/// 5xx, transport) — warn'ом, потому что трек может быть и рабочим.
 fn log_resolve_failure(msg: &str, stage: &str, preset: &str, protocol: &str) {
     match classify_status(msg) {
         Some(404) | Some(410) => debug!("[download] {stage} {preset}/{protocol} gone: {msg}"),
@@ -411,7 +399,7 @@ mod tests {
         assert_eq!(classify_status("status 404"), Some(404));
         assert_eq!(classify_status("status 502"), Some(502));
         assert_eq!(classify_status("relay status 429"), Some(429));
-        // Через враппер, как реально приходит:
+
         assert_eq!(classify_status("fetch: status 410"), Some(410));
         assert_eq!(classify_status("send: connection reset"), None);
         assert_eq!(classify_status("timeout"), None);

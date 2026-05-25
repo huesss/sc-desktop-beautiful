@@ -16,10 +16,6 @@ use crate::modules::enrich::dto as enrich_dto;
 use crate::modules::me::service::premium_response;
 use crate::state::AppState;
 
-/// `/users/{my_urn}/*` для своего URN — это синоним `/me/*`: один и тот же
-/// юзер, один и тот же набор треков/плейлистов/лайков. Делегируем в MeService,
-/// чтобы (а) не делать второй SC fetch на те же данные, (б) видеть приватные
-/// owned tracks/playlists, которые из `/users/{urn}` не отдаются.
 fn is_self(ctx: &SessionCtx, user_urn: &str) -> bool {
     extract_sc_id(user_urn) == ctx.sc_user_id
 }

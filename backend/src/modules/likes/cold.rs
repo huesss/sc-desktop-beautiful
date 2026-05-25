@@ -6,8 +6,6 @@ use sqlx::PgPool;
 use crate::common::sc_ids::extract_sc_id;
 use crate::error::AppResult;
 
-/// Подмножество sc_track_id из переданного списка urns, которые юзер залайкал
-/// (wanted_state=true — pending unlike исключены).
 async fn fetch_liked_ids(
     pg: &PgPool,
     sc_user_id: &str,
@@ -27,7 +25,6 @@ async fn fetch_liked_ids(
     Ok(rows.into_iter().map(|(id,)| id).collect())
 }
 
-/// Подмешать `user_favorite=true` к трекам, которые есть в user_likes_tracks.
 pub async fn apply_user_favorite_flag(
     pg: &PgPool,
     sc_user_id: &str,
@@ -59,9 +56,6 @@ pub async fn apply_user_favorite_flag(
     Ok(())
 }
 
-/// То же что `apply_user_favorite_flag`, но для activity-items с track-origin
-/// (используется в /me/feed*). Мутирует `origin` каждой activity inline,
-/// без клонирования track-объекта.
 pub async fn apply_user_favorite_flag_to_activities(
     pg: &PgPool,
     sc_user_id: &str,

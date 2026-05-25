@@ -14,20 +14,20 @@ import { logHttpError, logHttpFailure, trackAsync } from './diagnostics';
 import { isHealthy, markHealthy, markUnhealthy } from './host-health';
 import { getIsPremium } from './premium-cache';
 
-// ─── Types ──────────────────────────────────────────────────
+
 
 export type ResolvedStreamingTrack = Partial<Track> & {
   full_duration?: number;
 };
 
-// ─── Host resolution ────────────────────────────────────────
+
 
 function resolveStreamingBases(): string[] {
   const bypass = useSettingsStore.getState().bypassWhitelist;
   const premium = getIsPremium();
 
   if (bypass && premium) {
-    // All 4 bases, healthy first
+    
     const all = [
       BYPASS_STREAMING_PREMIUM_BASE,
       BYPASS_STREAMING_BASE,
@@ -45,7 +45,7 @@ function resolveStreamingBases(): string[] {
   return [...new Set([STREAMING_PREMIUM_BASE, STREAMING_BASE])];
 }
 
-// ─── Streaming JSON ─────────────────────────────────────────
+
 
 async function streamingJson<T = unknown>(path: string): Promise<T> {
   let lastError: unknown = null;
@@ -87,7 +87,7 @@ async function streamingJson<T = unknown>(path: string): Promise<T> {
   throw lastError ?? new Error('Streaming request failed');
 }
 
-// ─── Public API ─────────────────────────────────────────────
+
 
 export function resolveTrackFromStreaming(url: string) {
   return streamingJson<ResolvedStreamingTrack>(`/resolve?url=${encodeURIComponent(url)}`);
@@ -137,10 +137,9 @@ function buildDownloadUrl(base: string, trackUrn: string, hq: boolean) {
   return `${base}/download/${encodeURIComponent(trackUrn)}${suffix}`;
 }
 
-/// URL'ы `/download/:urn` по всем валидным стриминг-базам.
-/// Клиент дергает их между anon и storage stream: сервер только резолвит
-/// SoundCloud-ссылки + (для encrypted) делает Widevine handshake, скачивание
-/// сегментов идёт прямо с SC.
+
+
+
 export function downloadFallbackUrls(
   trackUrn: string,
   hq = useSettingsStore.getState().highQualityStreaming,

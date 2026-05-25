@@ -53,18 +53,16 @@ const ArtistChip = memo(function ArtistChip({
         boxShadow: isPrimary
           ? `inset 0 0 0 1px ${auraRgba(aura, 0.35)}`
           : 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
       }}
     >
       <span className="relative w-7 h-7 rounded-full overflow-hidden ring-1 ring-white/15">
         <Avatar src={avatarUrl} alt={name} size={28} />
       </span>
       <span className="flex flex-col items-start leading-tight">
-        <span className="text-[12px] font-semibold text-white/90 group-hover:text-white">
+        <span className="text-[12px] font-semibold text-white group-hover:text-white">
           {name}
         </span>
-        <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/35">
+        <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#ffffff99]">
           {subLabel}
         </span>
       </span>
@@ -109,7 +107,7 @@ function AlbumHeroImpl({ album, hasStar, aura }: AlbumHeroProps) {
         </div>
       )}
 
-      <div className="relative p-6 md:p-10 flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-start">
+      <div className="relative px-5 py-4 md:p-10 flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-start">
         <AlbumCoverArtifact
           title={album.title}
           coverUrl={album.cover_url}
@@ -129,8 +127,6 @@ function AlbumHeroImpl({ album, hasStar, aura }: AlbumHeroProps) {
                 boxShadow: hasStar
                   ? `inset 0 0 0 1px ${auraRgba(aura, 0.4)}`
                   : 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
               }}
             >
               <Disc3 size={11} /> {kindLabel}
@@ -219,7 +215,7 @@ function AlbumHeroImpl({ album, hasStar, aura }: AlbumHeroProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-1 justify-center lg:justify-start">
-            <AlbumPlayButton tracks={album.tracks} aura={aura} />
+            <AlbumPlayButton tracks={album.tracks} albumId={album.id} aura={aura} />
           </div>
         </div>
       </div>

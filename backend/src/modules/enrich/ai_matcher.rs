@@ -1,12 +1,4 @@
-//! AI fuzzy-matcher (backend ↔ worker через NATS request-reply).
-//!
-//! Используется matcher-пайплайном в borderline-зоне (когда алгоритмический
-//! score 0.45..0.7 — недостаточно уверенно, чтобы линковать, но и не явный
-//! mismatch). LLM в worker'е получает компактный промпт «target vs N
-//! кандидатов» и возвращает индекс совпавшего (или null). Ответ кэшируется
-//! в Redis на 30 дней — повторные wanted-tick'и не плодят запросов.
-//!
-//! Бюджет берётся из общего daily-бюджета AI (тот же, что у `AiResolverClient`).
+
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,7 +15,7 @@ use crate::error::AppResult;
 
 const CACHE_TTL_SEC: u64 = 30 * 24 * 60 * 60;
 const CACHE_PREFIX: &str = "ai:match:";
-const BUDGET_PREFIX: &str = "ai:resolve:budget:"; // общий счётчик с AiResolverClient
+const BUDGET_PREFIX: &str = "ai:resolve:budget:";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MatchTarget<'a> {
@@ -33,8 +25,7 @@ pub struct MatchTarget<'a> {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MatchCandidate<'a> {
-    /// Внутренний идентификатор кандидата в текущем запросе (0..n-1). Worker
-    /// возвращает его обратно.
+
     pub id: u32,
     pub artist: &'a str,
     pub title: &'a str,
@@ -52,7 +43,6 @@ struct MatchRequest<'a> {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct MatchReply {
-    /// id из запроса; null если ни один не совпал.
     #[serde(default)]
     match_id: Option<u32>,
     #[serde(default)]
@@ -87,8 +77,6 @@ impl AiMatcherClient {
         })
     }
 
-    /// Спрашивает worker «какой из candidates это target»; None если не
-    /// определилось / бюджет исчерпан / NATS таймаут.
     pub async fn pick(
         &self,
         target: MatchTarget<'_>,

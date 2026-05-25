@@ -8,12 +8,6 @@ use tokio::io::AsyncWriteExt;
 
 use crate::shared::constants::is_domain_whitelisted;
 
-/// Permanent on-disk image cache.
-///
-/// Lives in `app_data_dir/images/` (NOT cache_dir) so the OS never reclaims
-/// the files. The directory is sharded by the first two hex chars of the
-/// SHA256 key so we never end up with hundreds of thousands of entries in
-/// a single directory.
 pub struct ImageCache {
     pub dir: PathBuf,
     pub http_client: reqwest::Client,
@@ -58,8 +52,6 @@ fn sniff_content_type(data: &[u8]) -> &'static str {
     }
 }
 
-/// Atomic write: tmp -> fsync -> rename. Survives crashes — we either have
-/// the old file or the fully-written new one, never a partial blob.
 async fn write_atomic(path: &Path, data: &[u8]) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).await?;
@@ -212,8 +204,6 @@ pub async fn handle(encoded: &str) -> ImageResult {
         data,
     }
 }
-
-/* ── Maintenance commands (size / clear) ─────────────────── */
 
 async fn dir_size(path: &Path) -> u64 {
     let mut total = 0u64;

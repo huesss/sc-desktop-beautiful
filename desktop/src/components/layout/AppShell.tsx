@@ -5,8 +5,8 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/shallow';
 import { getCurrentTime, getDuration, handlePrev, seek } from '../../lib/audio';
 import { getWallpaperUrl } from '../../lib/cache';
-import { art } from '../../lib/formatters';
 import { isMac } from '../../lib/platform';
+import { focusTopSearch } from '../../lib/top-search';
 import { toggleWindowFullscreen } from '../../lib/window';
 import { useLyricsStore } from '../../stores/lyrics';
 import { usePlayerStore } from '../../stores/player';
@@ -22,13 +22,13 @@ const QueuePanel = lazy(() =>
   import('../music/QueuePanel').then((module) => ({ default: module.QueuePanel })),
 );
 
-/* ── Keybinding definitions ────────────────────────────────── */
+
 
 interface Keybinding {
   key: string;
   label: string;
   group: 'playback' | 'navigation' | 'panels';
-  display: string; // what to show in the UI (e.g. "Space", "←", "M")
+  display: string; 
 }
 
 const keybindings: Keybinding[] = [
@@ -65,10 +65,10 @@ function getVolumeStep(repeatCount: number): number {
   return 8;
 }
 
-/* ── Keybindings dialog ───────────────────────────────────── */
+
 
 const KeyCap = ({ children }: { children: React.ReactNode }) => (
-  <kbd className="inline-flex items-center justify-center min-w-[28px] h-[28px] px-1.5 rounded-lg bg-white/[0.08] border border-white/[0.1] text-[12px] font-semibold text-white/70 font-mono shadow-[0_1px_2px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.06)]">
+  <kbd className="inline-flex h-7 min-w-[28px] items-center justify-center rounded-md border border-white/10 bg-[#141414] px-1.5 font-mono text-[12px] font-medium text-[#ffffff99]">
     {children}
   </kbd>
 );
@@ -86,32 +86,32 @@ const KeybindingsDialog = React.memo(
     return (
       <Dialog.Root open={open} onOpenChange={onOpenChange}>
         <Dialog.Portal>
-          <Dialog.Overlay className="dialog-overlay fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm" />
-          <Dialog.Content className="dialog-content fixed z-[80] top-1/2 left-1/2 w-full max-w-[520px] bg-[#1a1a1e]/95 backdrop-blur-2xl border border-white/[0.08] rounded-3xl shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="px-7 pt-6 pb-4 border-b border-white/[0.06]">
-              <Dialog.Title className="text-[18px] font-bold text-white/90 tracking-tight">
+          <Dialog.Overlay className="dialog-overlay fixed inset-0 z-[80] bg-black/60 " />
+          <Dialog.Content className="dialog-content fixed z-[80] top-1/2 left-1/2 w-full max-w-[520px] border border-white/10 bg-[#0a0a0a] rounded-xl overflow-hidden">
+            {}
+            <div className="px-5 pt-6 pb-4 border-b border-white/10">
+              <Dialog.Title className="text-[18px] font-bold text-white tracking-tight">
                 {t('kb.title')}
               </Dialog.Title>
-              <Dialog.Description className="text-[12px] text-white/30 mt-1">
+              <Dialog.Description className="text-[12px] text-[#ffffff99] mt-1">
                 {isMac() ? '⌘' : 'Ctrl'} + / {t('kb.toToggle')}
               </Dialog.Description>
             </div>
 
-            {/* Body */}
-            <div className="px-7 py-5 space-y-6 max-h-[60vh] overflow-y-auto">
+            {}
+            <div className="px-5 py-5 space-y-6 max-h-[60vh] overflow-y-auto">
               {groups.map((group) => (
                 <div key={group.id}>
-                  <h3 className="text-[11px] font-bold text-white/30 uppercase tracking-widest mb-3">
+                  <h3 className="text-[11px] font-bold text-[#ffffff99] uppercase tracking-widest mb-3">
                     {t(group.label)}
                   </h3>
                   <div className="space-y-1">
                     {group.bindings.map((bind) => (
                       <div
                         key={bind.key}
-                        className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-white/[0.03] transition-colors"
+                        className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-white/5 transition-colors"
                       >
-                        <span className="text-[13px] text-white/60">{t(bind.label)}</span>
+                        <span className="text-[13px] text-[#ffffff99]">{t(bind.label)}</span>
                         <div className="flex items-center gap-1">
                           {bind.display.split(' ').map((part, i) => (
                             <KeyCap key={i}>{part}</KeyCap>
@@ -124,12 +124,12 @@ const KeybindingsDialog = React.memo(
               ))}
             </div>
 
-            {/* Footer */}
-            <div className="px-7 py-4 border-t border-white/[0.06] flex justify-end">
+            {}
+            <div className="px-5 py-4 border-t border-white/10 flex justify-end">
               <Dialog.Close asChild>
                 <button
                   type="button"
-                  className="px-5 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-[13px] font-semibold text-white/70 hover:text-white transition-all cursor-pointer"
+                  className="btn-secondary"
                 >
                   {t('kb.close')}
                 </button>
@@ -142,7 +142,7 @@ const KeybindingsDialog = React.memo(
   },
 );
 
-/* ── Backgrounds ───────────────────────────────────────────── */
+
 
 const CustomBackground = React.memo(() => {
   const { bgName, bgOpacity, bgBlur } = useSettingsStore(
@@ -183,40 +183,25 @@ const CustomBackground = React.memo(() => {
         />
       </div>
       <div
-        className="absolute inset-0 bg-[rgb(8,8,10)] transition-opacity duration-300"
+        className="absolute inset-0 bg-[#0a0a0a] transition-opacity duration-300"
         style={{ opacity: bgOpacity }}
       />
     </div>
   );
 });
 
-const AmbientGlow = React.memo(() => {
-  const artwork = usePlayerStore((s) => art(s.currentTrack?.artwork_url, 't500x500'));
-  if (!artwork) return null;
-  return (
-    <div
-      className="absolute bottom-0 left-0 right-0 h-[400px] opacity-[0.06] blur-[100px] pointer-events-none transition-all duration-[2s] ease-out"
-      style={{
-        backgroundImage: `url(${artwork})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        contain: 'strict',
-        transform: 'translateZ(0)',
-      }}
-    />
-  );
-});
+const AmbientGlow = React.memo(() => null);
 
 const StableOutlet = React.memo(() => <Outlet />);
 
-/* ── Helpers ───────────────────────────────────────────────── */
+
 
 const isInputEl = (el: EventTarget | null) =>
   el instanceof HTMLInputElement ||
   el instanceof HTMLTextAreaElement ||
   (el instanceof HTMLElement && el.isContentEditable);
 
-/* ── AppShell ──────────────────────────────────────────────── */
+
 
 export const AppShell = React.memo(() => {
   const [queueOpen, setQueueOpen] = useState(false);
@@ -234,34 +219,32 @@ export const AppShell = React.memo(() => {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const inInput = isInputEl(e.target);
-      // e.code = physical key (layout-independent), e.key = character
+      
       const code = e.code;
 
-      // Ctrl+/ — toggle keybindings dialog (always)
+      
       if ((e.key === '/' || code === 'Slash') && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setKbOpen((v) => !v);
         return;
       }
 
-      // Ctrl+K — focus search (always, even in input)
       if (code === 'KeyK' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        navigate('/search');
+        focusTopSearch();
         return;
       }
 
-      // F11 — toggle fullscreen (always)
+      
       if (code === 'F11' && !e.repeat) {
         e.preventDefault();
         void toggleWindowFullscreen();
         return;
       }
 
-      // / — focus search (not in input)
       if ((e.key === '/' || code === 'Slash') && !inInput) {
         e.preventDefault();
-        navigate('/search');
+        focusTopSearch();
         return;
       }
 
@@ -358,11 +341,13 @@ export const AppShell = React.memo(() => {
       <Titlebar />
       <div className="flex flex-1 min-h-0 relative z-10" style={{ isolation: 'isolate' }}>
         <Sidebar />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">
-          <StableOutlet />
-        </main>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <StableOutlet />
+          </main>
+          <NowPlayingBar onQueueToggle={onQueueToggle} queueOpen={queueOpen} />
+        </div>
       </div>
-      <NowPlayingBar onQueueToggle={onQueueToggle} queueOpen={queueOpen} />
       {queueOpen && (
         <Suspense fallback={null}>
           <QueuePanel open={queueOpen} onClose={onQueueClose} />

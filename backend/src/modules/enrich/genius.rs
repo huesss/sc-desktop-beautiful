@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn flipped_order_detected() {
-        // user wrote "x-ray - Psychosis" instead of "Psychosis - x-ray"
+
         let target_title = normalize_name("Psychosis");
         let target_artist = normalize_name("x-ray");
         let cand_title = normalize_name("x-ray");
@@ -169,10 +169,10 @@ mod tests {
 
     #[test]
     fn fake_claim_rejected() {
-        // "lil peed" claim — neither artist nor title match anything real
+
         let target_title = normalize_name("я долбаеб");
         let target_artist = normalize_name("lil peed");
-        // suppose Genius returned some unrelated result
+
         let cand_title = normalize_name("Some Other Song");
         let cand_artist = normalize_name("Other Artist");
 

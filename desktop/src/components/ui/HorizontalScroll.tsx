@@ -81,7 +81,7 @@ export function HorizontalScroll({ children, className = '' }: HorizontalScrollP
           e.stopPropagation();
         }
       }}
-      className={`flex gap-4 overflow-x-hidden pb-2 scrollbar-hide cursor-grab active:cursor-grabbing ${className}`}
+      className={`flex gap-2 overflow-x-hidden pb-2 scrollbar-hide cursor-grab active:cursor-grabbing ${className}`}
       style={{
         contentVisibility: 'auto',
         contain: 'layout paint style',

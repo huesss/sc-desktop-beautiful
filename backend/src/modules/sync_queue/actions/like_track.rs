@@ -16,8 +16,6 @@ pub async fn execute(ctx: &ActionCtx<'_>) -> AppResult<()> {
         )
         .await?;
     let sc_track_id = extract_sc_id(ctx.target_urn);
-    // wanted_state=true гарантирует, что мы не снимаем progress с строки,
-    // которую юзер уже успел перевернуть в pending-unlike.
     sqlx::query(
         "UPDATE user_likes_tracks \
          SET progress = false, synced_at = now() \

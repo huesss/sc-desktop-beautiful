@@ -101,9 +101,7 @@ impl DiscoverService {
     }
 
     async fn refresh_artist_counts(&self) -> AppResult<()> {
-        // track_count_primary считаем только по indexed tracks. Wanted-only
-        // артисты (без реальных треков) не должны показываться в discover —
-        // у юзера на их странице "вообще всё пусто".
+
         sqlx::query(
             r#"
             WITH primary_counts AS (

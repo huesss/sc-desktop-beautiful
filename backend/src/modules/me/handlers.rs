@@ -149,7 +149,7 @@ async fn follow_user(
     Path(user_urn): Path<String>,
 ) -> AppResult<Json<Value>> {
     let v = st.me.follow_user(&ctx.sc_user_id, &user_urn).await?;
-    // Сбросить накопительный кэш me-followings этой сессии.
+
     if let Err(e) = st
         .list_cache
         .invalidate_by_prefixes(&["me-followings"], Some(&ctx.session_id.to_string()))

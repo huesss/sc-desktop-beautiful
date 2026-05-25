@@ -9,7 +9,7 @@ use tracing::debug;
 
 const MAX_RETRIES: usize = 3;
 const RETRY_DELAYS: [u64; 3] = [300, 800, 2000];
-// Loser of the race still awaited this long (don't drop slow relay early).
+
 const RACE_BOUNDED_GRACE: Duration = Duration::from_secs(15);
 const RELAY_MAX_RETRIES: usize = 1;
 
@@ -22,7 +22,6 @@ pub fn install_relay(relay: Arc<call_relay::Client>) {
 type BoxErr = Box<dyn std::error::Error + Send + Sync>;
 type FetchResult = Result<(Bytes, HashMap<String, String>), BoxErr>;
 
-// false => treat like transport failure (retry/keep racing), not the winner.
 pub type BodyValidator = Arc<dyn Fn(&[u8], &HashMap<String, String>) -> bool + Send + Sync>;
 
 fn accept_non_empty() -> BodyValidator {
@@ -179,7 +178,7 @@ async fn race_relay_proxy(
         proxy_res = proxy_fut.as_mut() => match proxy_res {
             Ok(v) => Ok(v),
             Err(proxy_err) => {
-                // 502 = proxy front-end down (not a ban): wait relay unbounded.
+
                 let unbounded = proxy_err.to_string() == "status 502";
                 if unbounded {
                     match relay_fut.await {

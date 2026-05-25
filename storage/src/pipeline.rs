@@ -47,8 +47,6 @@ impl Pipeline {
         Self { tx }
     }
 
-    /// Submit a single source file. Pipeline takes ownership of `source` —
-    /// it deletes the file on disk when done (success OR failure).
     pub async fn submit(
         &self,
         source: PathBuf,
@@ -72,10 +70,6 @@ impl Pipeline {
             .unwrap_or_else(|_| Err(PipelineError::Internal("dispatcher dropped reply".into())))
     }
 }
-
-// ──────────────────────────────────────────────────────────────────────
-// dispatcher: batches jobs and runs them through ffmpeg
-// ──────────────────────────────────────────────────────────────────────
 
 async fn dispatcher_loop(
     config: Arc<Config>,
@@ -130,7 +124,7 @@ async fn run_batch(
     bus: BusClient,
     jobs: Vec<PipelineJob>,
 ) {
-    // 1. Probe durations in parallel; reject too-short tracks immediately.
+
     let durations = futures::future::join_all(
         jobs.iter()
             .map(|j| transcode::probe_duration(&j.source, &config.ffprobe_bin)),
@@ -155,7 +149,6 @@ async fn run_batch(
         return;
     }
 
-    // 2. ffmpeg: try multi-input batch first; on failure, fall back per-file.
     let started = Instant::now();
     let inputs: Vec<&Path> = accepted
         .iter()
@@ -203,7 +196,7 @@ async fn run_batch(
             }
         }
         Err(err) => {
-            // n == 1: clean up and report
+
             for (job, _, _) in accepted {
                 let _ = tokio::fs::remove_file(&job.source).await;
                 let _ = job.reply.send(Err(PipelineError::Ffmpeg(err.to_string())));
@@ -263,10 +256,6 @@ async fn commit_single(
     }
     res
 }
-
-// ──────────────────────────────────────────────────────────────────────
-// writer pool: bounded parallel backend commits with retry
-// ──────────────────────────────────────────────────────────────────────
 
 struct WriterJob {
     key: String,

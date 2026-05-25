@@ -1,7 +1,7 @@
 {
-  "name": "soundcloud-desktop",
+  "name": "sc-desktop-beautiful",
   "private": true,
-  "version": "7.5.1",
+  "version": "7.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
