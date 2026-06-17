@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -589,6 +590,53 @@ async fn delete_orphans(
         .bind(seen)
         .execute(pg)
         .await?;
+    Ok(())
+}
+
+pub async fn attach_liked_track_timestamps(
+    pg: &PgPool,
+    sc_user_id: &str,
+    collection: &mut [Value],
+) -> AppResult<()> {
+    let urns: Vec<String> = collection
+        .iter()
+        .filter_map(|track| {
+            track
+                .get("urn")
+                .and_then(|value| value.as_str())
+                .map(String::from)
+        })
+        .collect();
+    if urns.is_empty() {
+        return Ok(());
+    }
+
+    let rows: Vec<(String, DateTime<Utc>)> = sqlx::query_as(
+        "SELECT sc_track_id, created_at FROM user_likes_tracks \
+         WHERE user_id = $1 AND sc_track_id = ANY($2) AND wanted_state = true",
+    )
+    .bind(sc_user_id)
+    .bind(&urns)
+    .fetch_all(pg)
+    .await?;
+
+    let liked_at_by_urn: HashMap<String, String> = rows
+        .into_iter()
+        .map(|(urn, created_at)| (urn, created_at.to_rfc3339()))
+        .collect();
+
+    for track in collection.iter_mut() {
+        let Some(obj) = track.as_object_mut() else {
+            continue;
+        };
+        let Some(urn) = obj.get("urn").and_then(|value| value.as_str()) else {
+            continue;
+        };
+        if let Some(liked_at) = liked_at_by_urn.get(urn) {
+            obj.insert("liked_at".into(), Value::String(liked_at.clone()));
+        }
+    }
+
     Ok(())
 }
 

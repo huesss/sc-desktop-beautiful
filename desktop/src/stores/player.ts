@@ -57,6 +57,7 @@ export interface Track {
   tag_list?: string;
   description?: string;
   created_at?: string;
+  liked_at?: string;
   comment_count?: number;
   playback_count?: number;
   likes_count?: number;

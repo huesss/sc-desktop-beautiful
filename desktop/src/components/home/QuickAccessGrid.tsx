@@ -9,6 +9,7 @@ import { refreshPlaylistListCaches } from '../../lib/playlist-cache';
 import { markPlaylistDead } from '../../lib/playlist-dead-registry';
 import { useVerifiedPlaylists } from '../../lib/playlist-verify';
 import { useSettingsStore } from '../../stores/settings';
+import { playlistTitleMatchesKeywords } from './playlist-queries';
 import type { SidebarPinnedPlaylist } from '../../stores/settings';
 import type { Track } from '../../stores/player';
 import { usePlayerStore } from '../../stores/player';
@@ -106,6 +107,7 @@ export const QuickAccessGrid = React.memo(function QuickAccessGrid({
   const qc = useQueryClient();
   const didRefresh = useRef(false);
   const pinned = useSettingsStore((s) => s.pinnedPlaylists);
+  const playlistKeywords = useSettingsStore((s) => s.playlistKeywords);
 
   useEffect(() => {
     if (didRefresh.current) return;
@@ -189,16 +191,19 @@ export const QuickAccessGrid = React.memo(function QuickAccessGrid({
       onClick: () => navigate('/library'),
     });
 
-    const cs2 = alivePlaylists.find((p) => /cs2|faceit|counter.?strike/i.test(p.title));
-    if (cs2) {
+    const keywordMatch = alivePlaylists.find((p) =>
+      playlistTitleMatchesKeywords(p.title, playlistKeywords),
+    );
+    if (keywordMatch) {
       out.push({
-        id: 'cs2',
-        title: cs2.title,
+        id: 'keyword-match',
+        title: keywordMatch.title,
         cover:
-          art(cs2.artwork_url, 't200x200') ?? art(cs2.tracks?.[0]?.artwork_url, 't200x200'),
+          art(keywordMatch.artwork_url, 't200x200') ??
+          art(keywordMatch.tracks?.[0]?.artwork_url, 't200x200'),
         color: nextColor(),
-        playlistUrn: cs2.urn,
-        onClick: () => navigate(`/playlist/${encodeURIComponent(cs2.urn)}`),
+        playlistUrn: keywordMatch.urn,
+        onClick: () => navigate(`/playlist/${encodeURIComponent(keywordMatch.urn)}`),
       });
     }
 
@@ -220,7 +225,7 @@ export const QuickAccessGrid = React.memo(function QuickAccessGrid({
     const seen = new Set(out.map((x) => x.id));
     for (const pl of alivePlaylists) {
       if (out.length >= 8) break;
-      if (cs2 && pl.urn === cs2.urn) continue;
+      if (keywordMatch && pl.urn === keywordMatch.urn) continue;
       const id = `pl-${pl.urn}`;
       if (seen.has(id)) continue;
       seen.add(id);
@@ -253,7 +258,7 @@ export const QuickAccessGrid = React.memo(function QuickAccessGrid({
     }
 
     return out.slice(0, 8);
-  }, [t, navigate, likedCover, pinned, alivePlaylists, aliveUrns, feedTracks]);
+  }, [t, navigate, likedCover, pinned, alivePlaylists, aliveUrns, feedTracks, playlistKeywords]);
 
   if (tiles.length === 0) return null;
 

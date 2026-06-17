@@ -34,7 +34,10 @@
     "clearQueue": "Kuyrugu Temizle",
     "addToQueue": "Kuyruga Ekle",
     "shuffle": "Karistir",
-    "repeat": "Tekrar"
+    "repeat": "Tekrar",
+    "playbackSpeed": "Hiz",
+    "playbackSpeedReset": "1.00x'e sifirla",
+    "soundTuning": "Ses ayari"
   },
   "auth": {
     "signIn": "SoundCloud ile giris yap",
@@ -170,6 +173,7 @@
     "yesterday": "Dun",
     "earlier": "Daha once",
     "filter": "Filtrele...",
+    "likesType": "Calma listesi",
     "noMatches": "Eslesme yok",
     "noLikedTracks": "Henuz begenilen parca yok",
     "notFollowing": "Kimseyi takip etmiyorsunuz",
@@ -305,6 +309,9 @@
     "themeCustom": "Ozel",
     "startup": "Baslangic",
     "startupPageDesc": "Uygulama acildiginda hangi sayfanin gosterilecegini secin",
+    "playlistKeywords": "Calma listesi anahtar kelimeleri",
+    "playlistKeywordsDesc": "Ana sayfa ve My SC raflari icin arama sorgulari. Her satir ayri bir sorgu.",
+    "playlistKeywordsPlaceholder": "dota 2\ncs 2\nfaceit\nтикток ск\nsoundcloud реп",
     "playback": "Oynatma",
     "floatingComments": "Yuzen yorumlar",
     "floatingCommentsDesc": "Calarken yorumlari kayan baloncuklar olarak goster",

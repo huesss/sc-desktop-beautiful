@@ -22,9 +22,10 @@ function trackAlbumLabel(track: Track): string {
   return track.enrichment?.album?.title?.trim() || '';
 }
 
-function trackCreatedMs(track: Track): number {
-  if (!track.created_at) return 0;
-  const d = new Date(track.created_at.replace(/\//g, '-').replace(' +0000', 'Z'));
+function trackDateAddedMs(track: Track): number {
+  const raw = track.liked_at ?? track.created_at;
+  if (!raw) return 0;
+  const d = new Date(raw.replace(/\//g, '-').replace(' +0000', 'Z'));
   const ms = d.getTime();
   return Number.isFinite(ms) ? ms : 0;
 }
@@ -43,7 +44,7 @@ export function sortPlaylistTracks(tracks: Track[], sort: PlaylistSortState): Tr
         sensitivity: 'base',
       });
     } else {
-      cmp = trackCreatedMs(a) - trackCreatedMs(b);
+      cmp = trackDateAddedMs(a) - trackDateAddedMs(b);
     }
     if (cmp === 0) {
       cmp = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });

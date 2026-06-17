@@ -18,9 +18,8 @@ export const BYPASS_STREAMING_PREMIUM_BASE =
 export const BYPASS_IMAGES_BASE =
   import.meta.env.VITE_BYPASS_IMAGES_BASE || 'https://white.images.scdinternal.site';
 
-export const GITHUB_OWNER = 'zxcloli666';
-export const GITHUB_REPO = 'SoundCloud-Desktop';
-export const GITHUB_REPO_EN = 'SoundCloud-Desktop-EN';
+export const GITHUB_OWNER = 'huesss';
+export const GITHUB_REPO = 'sc-desktop-beautiful';
 export const APP_VERSION = __APP_VERSION__;
 
 export const SHOW_NEWS = true;

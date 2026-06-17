@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isLightBg } from '../lib/theme-utils';
 import { useSettingsStore } from '../stores/settings';
 
 function hexToRgb(hex: string): string {
@@ -24,17 +25,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty('--color-accent-hover', hover);
     root.style.setProperty('--color-accent-glow', `rgba(${rgb}, 0.2)`);
     root.style.setProperty('--color-accent-selection', `rgba(${rgb}, 0.3)`);
-    
+
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
     root.style.setProperty('--color-accent-contrast', lum > 160 ? '#000000' : '#ffffff');
   }, [accentColor]);
 
   useEffect(() => {
     const root = document.documentElement;
+    const light = isLightBg(bgPrimary);
     root.style.setProperty('--bg-primary', bgPrimary);
     const bgRgb = hexToRgb(bgPrimary);
     root.style.setProperty('--bg-titlebar', `rgba(${bgRgb}, 0.95)`);
     root.style.backgroundColor = bgPrimary;
+    root.style.setProperty('--color-text-primary', light ? '#000000' : '#ffffff');
+    root.style.setProperty('--color-text-secondary', light ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.6)');
+    root.style.setProperty('--color-text-tertiary', light ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)');
+    root.style.setProperty('--color-border-glass', light ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)');
+    root.style.setProperty('--color-bg-glass-hover', light ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)');
+    root.style.setProperty('--color-bg-glass-active', light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)');
+    const rootEl = document.getElementById('root');
+    if (rootEl) rootEl.style.backgroundColor = bgPrimary;
   }, [bgPrimary]);
 
   return <>{children}</>;

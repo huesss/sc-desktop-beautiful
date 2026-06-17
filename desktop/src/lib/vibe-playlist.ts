@@ -3,8 +3,8 @@ import type { PagedResponse } from './hooks';
 import { normalizePlaylistTracks, type Playlist } from './hooks';
 import type { Track } from '../stores/player';
 import { usePlayerStore } from '../stores/player';
+import { useSettingsStore } from '../stores/settings';
 
-const PLAYLIST_SEARCH = 'cs2 faceit playlist';
 const TRACK_PAGE_LIMIT = 200;
 const MAX_TRACK_PAGES = 10;
 const TOP_PLAYLIST_POOL = 5;
@@ -102,10 +102,14 @@ async function fetchPlaylistTracks(urn: string): Promise<Track[]> {
 }
 
 function scorePlaylist(p: Playlist): number {
+  const keywords = useSettingsStore.getState().playlistKeywords;
   const title = p.title.toLowerCase();
   let score = 0;
-  if (/cs2|csgo|counter.?strike/.test(title)) score += 3;
-  if (/faceit/.test(title)) score += 3;
+  for (const kw of keywords) {
+    for (const word of kw.toLowerCase().split(/\s+/)) {
+      if (word.length >= 2 && title.includes(word)) score += 2;
+    }
+  }
   if (/playlist|mix|music|плейлист/.test(title)) score += 1;
   if (/finder|track your/.test(title)) score -= 3;
   if ((p.track_count ?? 0) < 3) score -= 2;
@@ -123,13 +127,15 @@ function pickTopPlaylists(playlists: Playlist[], count: number): Playlist[] {
 }
 
 async function resolveVibePlaylist(): Promise<{ urn: string; tracks: Track[] }> {
+  const searchQuery =
+    useSettingsStore.getState().playlistKeywords[0] ?? 'cs2 faceit playlist';
   const res = await api<PagedResponse<Playlist>>(
-    `/playlists?q=${encodeURIComponent(PLAYLIST_SEARCH)}&limit=40&page=0`,
+    `/playlists?q=${encodeURIComponent(searchQuery)}&limit=40&page=0`,
   );
   const all = res.collection ?? [];
   const top = pickTopPlaylists(all, TOP_PLAYLIST_POOL);
   const pool = top.length > 0 ? top : all.slice(0, TOP_PLAYLIST_POOL);
-  if (pool.length === 0) throw new Error('CS2 Faceit playlist not found');
+  if (pool.length === 0) throw new Error('Playlist not found for configured keywords');
 
   const loaded = (
     await Promise.all(
@@ -146,6 +152,14 @@ async function resolveVibePlaylist(): Promise<{ urn: string; tracks: Track[] }> 
   vibeTracks = buildVibeQueue();
   return { urn: vibePlaylistUrn, tracks: vibeTracks };
 }
+
+export function invalidateVibePlaylistCache() {
+  resetVibeCache();
+}
+
+useSettingsStore.subscribe((state, prev) => {
+  if (state.playlistKeywords !== prev.playlistKeywords) resetVibeCache();
+});
 
 export async function ensureVibePlaylistLoaded(): Promise<Track[]> {
   if (vibeTracks.length > 0) return vibeTracks;

@@ -14,7 +14,7 @@ export const Likes = React.memo(() => {
   if (!user) return null;
 
   return (
-    <div className="px-5 py-4 pb-4 space-y-6">
+    <div className="space-y-5 px-6 py-6 pb-8">
       <LikesHero />
       <LikesFilterInput value={filter} onChange={setFilter} />
       <LikedTracksList filter={deferredFilter} />

@@ -4,4 +4,4 @@ export { LikedPlaylistsShelf } from './LikedPlaylistsShelf';
 export { PlaylistSearchShelf } from './PlaylistSearchShelf';
 export { RecommendedPlaylistsShelf } from './RecommendedPlaylistsShelf';
 export { StaggeredPlaylistShelves } from './StaggeredPlaylistShelves';
-export { HOME_PLAYLIST_QUERIES } from './playlist-queries';
+export { getPlaylistKeywordQueries, playlistTitleMatchesKeywords } from './playlist-queries';

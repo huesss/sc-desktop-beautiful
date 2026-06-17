@@ -894,6 +894,40 @@ const StartupSection = React.memo(function StartupSection() {
   );
 });
 
+const PlaylistKeywordsSection = React.memo(function PlaylistKeywordsSection() {
+  const { t } = useTranslation();
+  const playlistKeywords = useSettingsStore((s) => s.playlistKeywords);
+  const setPlaylistKeywords = useSettingsStore((s) => s.setPlaylistKeywords);
+  const [draft, setDraft] = useState(playlistKeywords.join('\n'));
+
+  useEffect(() => {
+    setDraft(playlistKeywords.join('\n'));
+  }, [playlistKeywords]);
+
+  const save = useCallback(() => {
+    const next = draft
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    setPlaylistKeywords(next);
+  }, [draft, setPlaylistKeywords]);
+
+  return (
+    <SettingsGroup title={t('settings.playlistKeywords')} description={t('settings.playlistKeywordsDesc')}>
+      <SettingsInset>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={save}
+          rows={4}
+          placeholder={t('settings.playlistKeywordsPlaceholder')}
+          className="w-full resize-y rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[13px] leading-relaxed text-white/80 outline-none transition-colors placeholder:text-white/25 focus:border-white/15"
+        />
+      </SettingsInset>
+    </SettingsGroup>
+  );
+});
+
 
 
 const PlaybackSection = React.memo(function PlaybackSection() {
@@ -1121,6 +1155,7 @@ export function Settings() {
       <LanguageSection />
       <CacheSection />
       <ThemeSection />
+      <PlaylistKeywordsSection />
       <StartupSection />
       <PlaybackSection />
       <AudioDeviceSection />

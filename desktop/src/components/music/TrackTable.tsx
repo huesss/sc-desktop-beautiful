@@ -37,6 +37,13 @@ const GRID_VIEWER =
 const GRID_LIKES =
   'grid-cols-[40px_minmax(0,3fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_40px_56px_80px]';
 
+export type TrackDateSource = 'created_at' | 'liked_at';
+
+function resolveTrackDate(track: Track, source: TrackDateSource): string | undefined {
+  if (source === 'liked_at') return track.liked_at ?? track.created_at;
+  return track.created_at;
+}
+
 function trackIsExplicit(track: Track): boolean {
   return /\bexplicit\b/i.test(track.tag_list ?? '');
 }
@@ -142,6 +149,7 @@ export const TrackTableRow = React.memo(function TrackTableRow({
   onRemove,
   drag,
   rowActions,
+  dateSource = 'created_at',
 }: {
   track: Track;
   index: number;
@@ -152,6 +160,7 @@ export const TrackTableRow = React.memo(function TrackTableRow({
   onRemove?: (urn: string) => void;
   drag?: DragHandleProps;
   rowActions?: React.ReactNode;
+  dateSource?: TrackDateSource;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -162,8 +171,9 @@ export const TrackTableRow = React.memo(function TrackTableRow({
   const artistTarget = getArtistTarget(track);
   const grid = isOwner ? GRID_OWNER : withActions ? GRID_LIKES : GRID_VIEWER;
   const active = isThis;
-  const dateLabel = track.created_at ? ago(track.created_at) : '—';
-  const dateTitle = track.created_at ? dateFormatted(track.created_at) : undefined;
+  const dateRaw = resolveTrackDate(track, dateSource);
+  const dateLabel = dateRaw ? ago(dateRaw) : '—';
+  const dateTitle = dateRaw ? dateFormatted(dateRaw) : undefined;
 
   return (
     <div
@@ -340,6 +350,7 @@ export function TrackTableView({
   renderRowActions,
   footer,
   listDisabled,
+  dateSource = 'created_at',
 }: {
   tracks: Track[];
   playbackContext: PlaybackContext;
@@ -352,6 +363,7 @@ export function TrackTableView({
   renderRowActions?: (track: Track) => React.ReactNode;
   footer?: React.ReactNode;
   listDisabled?: boolean;
+  dateSource?: TrackDateSource;
 }) {
   const canReorder = isOwner && !sort && !!onDragEnd;
 
@@ -383,10 +395,11 @@ export function TrackTableView({
           withActions={withActions}
           onRemove={onRemove}
           rowActions={renderRowActions?.(track)}
+          dateSource={dateSource}
         />
       );
     },
-    [canReorder, tracks, playbackContext, isOwner, withActions, onRemove, renderRowActions],
+    [canReorder, tracks, playbackContext, isOwner, withActions, onRemove, renderRowActions, dateSource],
   );
 
   const list = (

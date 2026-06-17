@@ -15,6 +15,7 @@ import {
   Loader2,
   Play,
   Search as SearchIcon,
+  Shuffle,
   X,
 } from '../../lib/icons';
 import type { PlaybackContext } from '../../lib/playback-context';
@@ -60,12 +61,11 @@ export const LikesHero = React.memo(function LikesHero() {
   const user = useAuthStore((s) => s.user);
   const { tracks: likedTracks } = useLikedTracks();
   const [shuffleLoading, setShuffleLoading] = useState(false);
+  const heroArt = art(likedTracks[0]?.artwork_url, 't500x500');
 
-  const handleShuffleLikes = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handlePlayLikes = async (shuffle: boolean) => {
     if (shuffleLoading) return;
-
-    if (!usePlayerStore.getState().shuffle) {
+    if (shuffle && !usePlayerStore.getState().shuffle) {
       usePlayerStore.setState({ shuffle: true });
     }
 
@@ -74,8 +74,14 @@ export const LikesHero = React.memo(function LikesHero() {
 
     if (likedTracks.length > 0) {
       for (const tr of likedTracks) seen.add(tr.urn);
-      const random = likedTracks[Math.floor(Math.random() * likedTracks.length)];
-      usePlayerStore.getState().play(random, likedTracks, LIKES_PLAYBACK);
+      const list = shuffle ? [...likedTracks] : likedTracks;
+      if (shuffle) {
+        for (let i = list.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [list[i], list[j]] = [list[j], list[i]];
+        }
+      }
+      usePlayerStore.getState().play(list[0], list, LIKES_PLAYBACK);
       started = true;
     } else {
       setShuffleLoading(true);
@@ -88,8 +94,14 @@ export const LikesHero = React.memo(function LikesHero() {
         if (fresh.length === 0) return;
 
         if (!started) {
-          const random = fresh[Math.floor(Math.random() * fresh.length)];
-          usePlayerStore.getState().play(random, fresh, LIKES_PLAYBACK);
+          const list = shuffle ? [...fresh] : fresh;
+          if (shuffle) {
+            for (let i = list.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [list[i], list[j]] = [list[j], list[i]];
+            }
+          }
+          usePlayerStore.getState().play(list[0], list, LIKES_PLAYBACK);
           started = true;
           setShuffleLoading(false);
         } else {
@@ -104,44 +116,63 @@ export const LikesHero = React.memo(function LikesHero() {
   if (!user) return null;
 
   return (
-    <section className="relative h-[200px] max-w-xl rounded-md overflow-hidden p-6 flex flex-col justify-between border border-white/10 bg-[#0a0a0a]">
-      <div>
-        <div className="w-10 h-10 rounded-md bg-[#141414] border border-white/10 flex items-center justify-center mb-3 text-white">
-          <Heart size={22} strokeWidth={1.75} className="fill-white/15" />
-        </div>
-        <h1 className="text-2xl font-semibold text-white tracking-tight">{t('nav.likedTracks')}</h1>
-        <p className="text-[13px] text-[#ffffff99] mt-1">
-          {fc(user.public_favorites_count)} {t('search.tracks').toLowerCase()}
-        </p>
-      </div>
+    <section className="relative min-h-[280px] overflow-hidden rounded-lg border border-white/10">
+      {heroArt ? (
+        <img src={heroArt} alt="" className="absolute inset-0 size-full object-cover blur-3xl scale-110 opacity-35" />
+      ) : (
+        <div className="absolute inset-0 bg-[#141414]" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/75 to-[#0a0a0a]/20" />
 
-      <div className="flex items-center justify-between mt-auto">
-        <div className="flex -space-x-3">
-          {likedTracks.slice(0, 4).map((track) => (
-            <div
-              key={track.id}
-              className="w-10 h-10 rounded-full ring-2 ring-[#121214] bg-neutral-800 overflow-hidden relative z-[1]"
-            >
-              <img
-                src={art(track.artwork_url, 'small') || ''}
-                className="w-full h-full object-cover"
-                alt=""
-              />
-            </div>
-          ))}
+      <div className="relative z-10 flex h-full min-h-[280px] flex-col justify-end gap-6 p-6 md:flex-row md:items-end md:justify-between md:p-8">
+        <div className="flex items-end gap-5">
+          <div className="flex size-32 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-[#141414] shadow-2xl md:size-40">
+            {heroArt ? (
+              <img src={heroArt} alt="" className="size-full object-cover" />
+            ) : (
+              <Heart size={42} strokeWidth={1.5} className="fill-white/15 text-white" />
+            )}
+          </div>
+          <div className="min-w-0 pb-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
+              {t('library.likesType')}
+            </p>
+            <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
+              {t('nav.likedTracks')}
+            </h1>
+            <p className="mt-2 text-[13px] text-white/55">
+              {fc(user.public_favorites_count)} {t('search.tracks').toLowerCase()}
+            </p>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={handleShuffleLikes}
-          disabled={shuffleLoading}
-          className="flex size-10 items-center justify-center rounded-md bg-accent text-accent-contrast hover:brightness-110 transition-[filter] disabled:opacity-60"
-        >
-          {shuffleLoading ? (
-            <Loader2 size={20} className="animate-spin text-accent" />
-          ) : (
-            <Play size={18} fill="currentColor" strokeWidth={0} className="ml-0.5" />
-          )}
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void handlePlayLikes(true)}
+            disabled={shuffleLoading}
+            className="flex size-12 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white/10 disabled:opacity-60"
+            title={t('player.shuffle')}
+          >
+            {shuffleLoading ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <Shuffle size={20} />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handlePlayLikes(false)}
+            disabled={shuffleLoading}
+            className="flex size-14 items-center justify-center rounded-full bg-accent text-accent-contrast shadow-lg transition-[filter] hover:brightness-110 disabled:opacity-60"
+          >
+            {shuffleLoading ? (
+              <Loader2 size={24} className="animate-spin" />
+            ) : (
+              <Play size={24} fill="currentColor" strokeWidth={0} className="ml-0.5" />
+            )}
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -209,6 +240,7 @@ export const LikedTracksList = React.memo(function LikedTracksList({
       sort={sort}
       onCycleSort={cycleSort}
       withActions
+      dateSource="liked_at"
       renderRowActions={(track) => <LikesRowActions track={track} />}
       listDisabled={displayedTracks.length < 40}
       footer={
@@ -234,8 +266,8 @@ export const LikesFilterInput = React.memo(function LikesFilterInput({
   const { t } = useTranslation();
 
   return (
-    <div className="relative flex-1 min-w-[200px] max-w-[320px]">
-      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+    <div className="relative min-w-[200px] max-w-[360px] flex-1">
+      <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
         <SearchIcon size={15} className="text-[#ffffff99]" />
       </div>
       <input
@@ -243,13 +275,13 @@ export const LikesFilterInput = React.memo(function LikesFilterInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={t('library.filter')}
-        className="w-full bg-[#141414] text-white placeholder:text-[#ffffff99] text-[13px] py-2 pl-9 pr-8 rounded-md outline-none border border-white/10 focus:border-white/30 transition-colors"
+        className="w-full rounded-md border border-white/10 bg-[#141414] py-2.5 pl-9 pr-8 text-[13px] text-white outline-none transition-colors placeholder:text-[#ffffff99] focus:border-white/30"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange('')}
-          className="absolute inset-y-0 right-2 flex items-center text-[#ffffff99] hover:text-white cursor-pointer transition-colors"
+          className="absolute inset-y-0 right-2 flex cursor-pointer items-center text-[#ffffff99] transition-colors hover:text-white"
         >
           <X size={14} />
         </button>

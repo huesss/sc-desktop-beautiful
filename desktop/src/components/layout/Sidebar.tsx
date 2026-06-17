@@ -30,7 +30,7 @@ const navLinkClass = (iconOnly: boolean, active: boolean) =>
   } ${
     active
       ? 'bg-accent text-accent-contrast'
-      : 'border border-transparent text-[#ffffff99] hover:bg-white/5 hover:text-white'
+      : 'border border-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-glass-hover)] hover:text-[var(--color-text-primary)]'
   }`;
 
 export const Sidebar = React.memo(() => {
@@ -51,7 +51,7 @@ export const Sidebar = React.memo(() => {
   const labelClass = sidebarLabelClass(iconOnly);
   return (
     <aside
-      className={`flex h-full shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0a0a0a] z-30 ${SIDEBAR_WIDTH_TRANSITION}`}
+      className={`flex h-full shrink-0 flex-col overflow-hidden border-r border-[var(--color-border-glass)] bg-[var(--bg-primary)] z-30 ${SIDEBAR_WIDTH_TRANSITION}`}
       style={{ width }}
     >
       <nav className="flex flex-col gap-0.5 px-1.5 pt-2">
@@ -81,7 +81,7 @@ export const Sidebar = React.memo(() => {
 
       {pinnedPlaylists.length > 0 && (
         <div className="space-y-0.5 px-1.5 pt-3">
-          <div className="flex items-center gap-1.5 overflow-hidden px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-[#ffffff99]">
+          <div className="flex items-center gap-1.5 overflow-hidden px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
             <MapPin size={10} strokeWidth={1.75} className="shrink-0" />
             <span className={`truncate ${SIDEBAR_LABEL_TRANSITION} ${labelClass}`}>
               {t('sidebar.quickAccess')}
@@ -140,12 +140,12 @@ export const Sidebar = React.memo(() => {
             className={({ isActive }) =>
               `flex items-center overflow-hidden rounded-md px-2 py-2 transition-colors ${
                 iconOnly ? 'justify-center gap-0' : 'gap-2'
-              } ${isActive ? 'bg-accent text-accent-contrast' : 'hover:bg-white/5'}`
+              } ${isActive ? 'bg-accent text-accent-contrast' : 'hover:bg-[var(--color-bg-glass-hover)]'}`
             }
           >
             <Avatar src={user.avatar_url} alt={user.username} size={24} />
             <span
-              className={`truncate text-[12px] font-medium text-[#ffffff99] ${SIDEBAR_LABEL_TRANSITION} ${labelClass}`}
+              className={`truncate text-[12px] font-medium text-[var(--color-text-secondary)] ${SIDEBAR_LABEL_TRANSITION} ${labelClass}`}
             >
               {user.username}
             </span>

@@ -52,6 +52,14 @@ export const THEME_PRESETS: Record<Exclude<ThemePreset, 'custom'>, ThemePresetDe
   },
 };
 
+export const DEFAULT_PLAYLIST_KEYWORDS = [
+  'dota 2',
+  'cs 2',
+  'faceit',
+  'тикток ск',
+  'soundcloud реп',
+] as const;
+
 export interface SettingsState {
   accentColor: string;
   bgPrimary: string;
@@ -83,6 +91,7 @@ export interface SettingsState {
   soundwaveHideLiked: boolean;
   lyricsVisualizer: boolean;
   artistWaveCollapsed: boolean;
+  playlistKeywords: string[];
   setAccentColor: (color: string) => void;
   setBgPrimary: (bg: string) => void;
   setThemePreset: (id: ThemePreset) => void;
@@ -115,6 +124,7 @@ export interface SettingsState {
   setSoundwaveHideLiked: (v: boolean) => void;
   setLyricsVisualizer: (v: boolean) => void;
   setArtistWaveCollapsed: (v: boolean) => void;
+  setPlaylistKeywords: (keywords: string[]) => void;
   resetTheme: () => void;
 }
 
@@ -151,6 +161,7 @@ const DEFAULTS = {
   soundwaveHideLiked: false,
   lyricsVisualizer: false,
   artistWaveCollapsed: false,
+  playlistKeywords: [...DEFAULT_PLAYLIST_KEYWORDS],
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -211,6 +222,10 @@ export const useSettingsStore = create<SettingsState>()(
       setSoundwaveHideLiked: (soundwaveHideLiked) => set({ soundwaveHideLiked }),
       setLyricsVisualizer: (lyricsVisualizer) => set({ lyricsVisualizer }),
       setArtistWaveCollapsed: (artistWaveCollapsed) => set({ artistWaveCollapsed }),
+      setPlaylistKeywords: (playlistKeywords) => {
+        const cleaned = playlistKeywords.map((k) => k.trim()).filter(Boolean);
+        set({ playlistKeywords: cleaned.length > 0 ? cleaned : [...DEFAULT_PLAYLIST_KEYWORDS] });
+      },
       resetTheme: () =>
         set({
           accentColor: DEFAULTS.accentColor,
@@ -225,7 +240,7 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'sc-settings',
       storage: createJSONStorage(() => tauriStorage),
-      version: 17,
+      version: 18,
       migrate: (persistedState) => {
         const prev = (persistedState ?? {}) as Partial<SettingsState> & {
           soundwaveDiversity?: number;
@@ -278,6 +293,7 @@ export const useSettingsStore = create<SettingsState>()(
         soundwaveHideLiked: s.soundwaveHideLiked,
         lyricsVisualizer: s.lyricsVisualizer,
         artistWaveCollapsed: s.artistWaveCollapsed,
+        playlistKeywords: s.playlistKeywords,
       }),
     },
   ),

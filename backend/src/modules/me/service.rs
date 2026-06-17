@@ -10,8 +10,8 @@ use crate::cache::{
 };
 use crate::error::AppResult;
 use crate::modules::cold_refresh::{
-    read_collection_page, ColdRefreshService, FOLLOWINGS, LIKED_PLAYLISTS, LIKED_TRACKS,
-    OWNED_PLAYLISTS, OWNED_TRACKS,
+    attach_liked_track_timestamps, read_collection_page, ColdRefreshService, FOLLOWINGS,
+    LIKED_PLAYLISTS, LIKED_TRACKS, OWNED_PLAYLISTS, OWNED_TRACKS,
 };
 use crate::modules::events::EventsService;
 use crate::modules::likes::cold as likes_cold;
@@ -182,6 +182,7 @@ impl MeService {
             .await?;
         let mut result =
             read_collection_page(&self.pg, &LIKED_TRACKS, sc_user_id, page, limit).await?;
+        attach_liked_track_timestamps(&self.pg, sc_user_id, &mut result.collection).await?;
         for t in result.collection.iter_mut() {
             if let Some(obj) = t.as_object_mut() {
                 obj.insert("user_favorite".into(), Value::Bool(true));
