@@ -28,13 +28,32 @@ fn volume_to_rodio(v: f64) -> f32 {
     (v / 100.0).clamp(0.0, 2.0) as f32
 }
 
+fn apply_playback_volume(state: &AudioState) {
+    let master = *state.volume.lock().unwrap();
+    let incoming_mix = *state.crossfade_incoming_mix.lock().unwrap();
+    if let Some(t) = incoming_mix {
+        if let Some(holder) = state.crossfade_outgoing.lock().unwrap().as_ref() {
+            if let Some(ref outgoing) = *holder.lock().unwrap() {
+                outgoing.set_volume(master * (1.0 - t));
+            }
+        }
+        if let Some(ref incoming) = *state.player.lock().unwrap() {
+            incoming.set_volume(master * t);
+        }
+    } else if let Some(ref player) = *state.player.lock().unwrap() {
+        player.set_volume(master);
+    }
+}
+
 fn abort_crossfade(state: &AudioState) {
     state.crossfade_id.fetch_add(1, Ordering::Relaxed);
+    *state.crossfade_incoming_mix.lock().unwrap() = None;
     if let Some(holder) = state.crossfade_outgoing.lock().unwrap().take() {
         if let Some(outgoing) = holder.lock().unwrap().take() {
             outgoing.stop();
         }
     }
+    apply_playback_volume(state);
 }
 
 fn stop_current_player(state: &AudioState) {
@@ -105,6 +124,7 @@ async fn build_player_from_bytes(
 }
 
 pub fn reload_current_track(state: &AudioState) -> Result<(), String> {
+    abort_crossfade(state);
     suppress_ended_temporarily(state);
     let bytes = state.source_bytes.lock().unwrap().clone();
     let Some(bytes) = bytes else {
@@ -187,9 +207,9 @@ pub async fn crossfade_file(
     let outgoing_holder: std::sync::Arc<std::sync::Mutex<Option<rodio::Player>>> =
         std::sync::Arc::new(std::sync::Mutex::new(Some(outgoing)));
     *state.crossfade_outgoing.lock().unwrap() = Some(outgoing_holder.clone());
+    *state.crossfade_incoming_mix.lock().unwrap() = Some(0.0);
 
     let mixer = state.mixer.lock().unwrap().clone();
-    let target_vol = *state.volume.lock().unwrap();
     let normalization_enabled = state.normalization_enabled.load(Ordering::Relaxed);
     let (bytes, incoming, duration_secs, normalization_gain) = build_player_from_bytes(
         bytes,
@@ -216,6 +236,7 @@ pub async fn crossfade_file(
     state.has_track.store(true, Ordering::Relaxed);
     state.ended_notified.store(false, Ordering::Relaxed);
     state.device_error.store(false, Ordering::Relaxed);
+    apply_playback_volume(&state);
 
     let fade_id = state.crossfade_id.fetch_add(1, Ordering::Relaxed) + 1;
     let steps = ((fade_secs * 1000.0) / 16.0).ceil().max(1.0) as u32;
@@ -241,18 +262,16 @@ pub async fn crossfade_file(
                     {
                         *slot = None;
                     }
+                    *audio.crossfade_incoming_mix.lock().unwrap() = None;
+                    apply_playback_volume(&audio);
                 }
                 return;
             }
 
             let t = i as f32 / steps as f32;
-            if let Some(ref outgoing) = *outgoing_holder.lock().unwrap() {
-                outgoing.set_volume(target_vol * (1.0 - t));
-            }
             if let Some(audio) = app_for_fade.try_state::<AudioState>() {
-                if let Some(incoming) = audio.player.lock().unwrap().as_ref() {
-                    incoming.set_volume(target_vol * t);
-                }
+                *audio.crossfade_incoming_mix.lock().unwrap() = Some(t);
+                apply_playback_volume(&audio);
             }
 
             if i < steps {
@@ -270,6 +289,8 @@ pub async fn crossfade_file(
             {
                 *slot = None;
             }
+            *audio.crossfade_incoming_mix.lock().unwrap() = None;
+            apply_playback_volume(&audio);
         }
     });
 
@@ -320,6 +341,8 @@ pub async fn swap_source(
     normalization_cache_key: Option<String>,
     state: State<'_, AudioState>,
 ) -> Result<AudioLoadResult, String> {
+    abort_crossfade(&state);
+
     let bytes = task::spawn_blocking({
         let path = path.clone();
         move || std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
@@ -520,6 +543,7 @@ pub fn stop(state: State<'_, AudioState>) {
 }
 
 pub fn seek(position: f64, state: State<'_, AudioState>) -> Result<(), String> {
+    abort_crossfade(&state);
     suppress_ended_temporarily(&state);
     let target = Duration::from_secs_f64(position);
     let was_paused = state
@@ -580,9 +604,7 @@ pub fn seek(position: f64, state: State<'_, AudioState>) -> Result<(), String> {
 pub fn set_volume(volume: f64, state: State<'_, AudioState>) {
     let vol = volume_to_rodio(volume);
     *state.volume.lock().unwrap() = vol;
-    if let Some(ref player) = *state.player.lock().unwrap() {
-        player.set_volume(vol);
-    }
+    apply_playback_volume(&state);
 }
 
 fn clamp_playback_rate(rate: f64) -> f32 {

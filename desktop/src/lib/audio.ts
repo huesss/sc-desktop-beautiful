@@ -31,7 +31,11 @@ import { getUrnCluster, recordClusterFeedback } from './recsFeedback';
 import { playNextVibeTrack } from './vibe-playlist';
 import { getArtistDisplay, getDisplayTitle } from './track-display';
 
-const SKIP_THRESHOLD_SEC = 30;
+function applyEqFromSettings() {
+  const { eqEnabled, eqGains } = useSettingsStore.getState();
+  return invoke('audio_set_eq', { enabled: eqEnabled, gains: eqGains }).catch(console.error);
+}
+
 
 const FULL_PLAY_RATIO = 0.5;
 
@@ -163,6 +167,7 @@ export function getDuration(): number {
 
 export function seek(seconds: number) {
   if (!hasTrack) return;
+  crossfadeAdvanceScheduled = false;
   invoke('audio_seek', { position: seconds }).catch(console.error);
   cachedTime = seconds;
   syncTickSnapshot(seconds);
@@ -439,9 +444,7 @@ async function loadTrackWork(track: Track, playIntent: boolean | undefined, gen:
 
   
   const { normalizeVolume } = useSettingsStore.getState();
-  invoke('audio_set_eq', { enabled: false, gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }).catch(
-    console.error,
-  );
+  void applyEqFromSettings();
   invoke('audio_set_normalization', { enabled: normalizeVolume }).catch(console.error);
 
   
@@ -841,6 +844,9 @@ useSettingsStore.subscribe((state, prev) => {
     if (usePlayerStore.getState().currentTrack) {
       void reloadCurrentTrack();
     }
+  }
+  if (state.eqEnabled !== prev.eqEnabled || state.eqGains !== prev.eqGains) {
+    void applyEqFromSettings();
   }
 });
 

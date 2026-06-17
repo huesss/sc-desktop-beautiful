@@ -1,4 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
+import * as Slider from '@radix-ui/react-slider';
 import React, { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -10,6 +11,13 @@ import {
 } from '../../lib/equalizer';
 import { AudioLines, Power, RotateCcw, X } from '../../lib/icons';
 import { useSettingsStore } from '../../stores/settings';
+import {
+  PLAYBACK_RATE_DEFAULT,
+  PLAYBACK_RATE_MAX,
+  PLAYBACK_RATE_MIN,
+  PLAYBACK_RATE_STEP,
+  usePlayerStore,
+} from '../../stores/player';
 
 
 
@@ -171,6 +179,9 @@ export const EqualizerPanel = React.memo(function EqualizerPanel({
   const setEqGains = useSettingsStore((s) => s.setEqGains);
   const setEqPreset = useSettingsStore((s) => s.setEqPreset);
   const setEqBand = useSettingsStore((s) => s.setEqBand);
+  const playbackRate = usePlayerStore((s) => s.playbackRate);
+  const setPlaybackRate = usePlayerStore((s) => s.setPlaybackRate);
+  const resetPlaybackRate = usePlayerStore((s) => s.resetPlaybackRate);
 
   const isRu = i18n.language === 'ru';
 
@@ -211,7 +222,7 @@ export const EqualizerPanel = React.memo(function EqualizerPanel({
                   <AudioLines size={18} className="text-[#ffffff99]" />
                 </div>
                 <h2 className="text-[17px] font-bold text-white tracking-tight">
-                  {t('eq.title')}
+                  {t('player.soundTuning')}
                 </h2>
               </div>
               <div className="flex items-center gap-2">
@@ -287,6 +298,37 @@ export const EqualizerPanel = React.memo(function EqualizerPanel({
                   <PresetBtn id="custom" label={t('eq.custom')} active onClick={() => {}} />
                 )}
               </div>
+            </div>
+
+            <div className="border-t border-white/10 px-6 py-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-[13px] font-medium text-white">{t('player.playbackSpeed')}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] tabular-nums text-white/70">
+                    {playbackRate.toFixed(2)}x
+                  </span>
+                  <button
+                    type="button"
+                    onClick={resetPlaybackRate}
+                    className="rounded-md border border-white/10 px-2 py-1 text-[11px] text-white/55 transition-colors hover:text-white"
+                  >
+                    {t('player.playbackSpeedReset')}
+                  </button>
+                </div>
+              </div>
+              <Slider.Root
+                className="relative flex h-5 w-full touch-none select-none items-center"
+                min={PLAYBACK_RATE_MIN}
+                max={PLAYBACK_RATE_MAX}
+                step={PLAYBACK_RATE_STEP}
+                value={[playbackRate]}
+                onValueChange={([value]) => setPlaybackRate(value)}
+              >
+                <Slider.Track className="relative h-1.5 grow rounded-full bg-white/10">
+                  <Slider.Range className="absolute h-full rounded-full bg-accent" />
+                </Slider.Track>
+                <Slider.Thumb className="block size-4 rounded-full border border-white/20 bg-white shadow-md focus:outline-none" />
+              </Slider.Root>
             </div>
           </div>
         </Dialog.Content>

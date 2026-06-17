@@ -9,6 +9,7 @@ import { getCurrentTime, getDuration, handlePrev, seek, subscribe } from '../../
 import { art, formatTime } from '../../lib/formatters';
 import { invalidateAllLikesCache } from '../../lib/hooks';
 import {
+  AudioLines,
   Check,
   Heart,
   MicVocal,
@@ -28,6 +29,7 @@ import { optimisticToggleLike, useLiked } from '../../lib/likes';
 import { isVibeRoute, triggerVibeLikeFlash } from '../../lib/vibe-like-flash';
 import { useArtistDisplay, useDisplayTitle } from '../../lib/track-display';
 import { useLyricsStore } from '../../stores/lyrics';
+import { EqualizerPanel } from '../music/EqualizerPanel';
 import { type Track, usePlayerStore } from '../../stores/player';
 import { UploadKindDot } from '../music/UploadKindDot';
 
@@ -574,6 +576,7 @@ const BackgroundGlow = React.memo(() => null);
 
 export const NowPlayingBar = React.memo(
   ({ onQueueToggle, queueOpen }: { onQueueToggle: () => void; queueOpen: boolean }) => {
+    const { t } = useTranslation();
     return (
       <div className="relative z-[50] shrink-0 overflow-visible border-t border-white/[0.08] bg-black">
         <div
@@ -606,6 +609,15 @@ export const NowPlayingBar = React.memo(
 
           <div className="flex items-center justify-end gap-0.5 justify-self-end pl-1">
             <LyricsBtn />
+            <EqualizerPanel>
+              <button
+                type="button"
+                className="flex size-8 items-center justify-center rounded-md text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                title={t('player.soundTuning')}
+              >
+                <AudioLines size={16} />
+              </button>
+            </EqualizerPanel>
             <QueueBtn onClick={onQueueToggle} active={queueOpen} />
             <ControlVolumeBtn size="sm" />
               <VolumeSlider className="w-[88px]" />
