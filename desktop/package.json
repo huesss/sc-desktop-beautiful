@@ -1,7 +1,7 @@
 {
   "name": "sc-desktop-beautiful",
   "private": true,
-  "version": "7.5.0",
+  "version": "release_v1",
   "type": "module",
   "scripts": {
     "dev": "vite",
