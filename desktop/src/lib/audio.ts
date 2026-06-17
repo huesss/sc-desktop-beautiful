@@ -36,6 +36,7 @@ function applyEqFromSettings() {
   return invoke('audio_set_eq', { enabled: eqEnabled, gains: eqGains }).catch(console.error);
 }
 
+const SKIP_THRESHOLD_SEC = 30;
 
 const FULL_PLAY_RATIO = 0.5;
 
